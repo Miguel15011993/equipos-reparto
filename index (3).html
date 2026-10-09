@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b2a4a">
+<title>Equipos de Reparto Llanos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =================== CONFIGURACIÓN (pega aquí los datos de tu proyecto Supabase) =================== */
+const CONFIG = {
+  SUPABASE_URL: 'https://tgccvmvqnorxgdphbmjn.supabase.co',      // ej: https://abcdxyz.supabase.co
+  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnY2N2bXZxbm9yeGdkcGhibWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NTk1OTcsImV4cCI6MjEwNzEzNTU5N30.zB3wtknEm4q8rIun_t1PKqRaPr70_SCgKmZVJ8lFSi4',  // Project Settings → API → anon public (o publishable key)
+  DOMINIO: 'reparto-llanos.app'                  // no cambiar después de crear usuarios
+};
+</script>
+<style>
+/* Layout: barra navy arriba; operador = tarjetas grandes de acción para celular; administrador = pestañas con listas */
+:root{
+  --bg:#eef1f6; --surface:#fff; --surface2:#f6f8fb; --fg:#14213a; --muted:#5a6680; --line:#d9dfe9;
+  --navy:#1b2a4a; --navy-fg:#f3f5fa; --gold:#b9851a; --gold-soft:#f6ecd4;
+  --ok:#1e8449; --ok-soft:#e1f3e8; --warn:#b86e00; --warn-soft:#fbefd9; --bad:#b83227; --bad-soft:#f8e1de; --info:#2a62c4; --info-soft:#e2ebfa; --off:#6b7486; --off-soft:#eceef2;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --f-body:Barlow,"Segoe UI",Arial,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:8px; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0c1322; --surface:#141d31; --surface2:#19243c; --fg:#e7ebf3; --muted:#98a3bb; --line:#27334e;
+  --navy:#08101f; --navy-fg:#eef1f7; --gold:#e2b24e; --gold-soft:#3a2f17;
+  --ok:#4cc27e; --ok-soft:#14301f; --warn:#f0a43a; --warn-soft:#352812; --bad:#f07466; --bad-soft:#3a1a18; --info:#73a2f2; --info-soft:#17284a; --off:#9aa3b4; --off-soft:#232c3e; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px}
+header.band{background:var(--navy);color:var(--navy-fg);padding-block:calc(14px + env(safe-area-inset-top,0px)) 12px;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10}
+.band .wrap{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
+.eyebrow{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.12em;font-size:12px;color:var(--gold);font-weight:600}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(22px,4vw,30px);line-height:1;margin:2px 0 0}
+.who{font-size:13px;opacity:.85}
+.band-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid color-mix(in srgb,var(--navy-fg) 30%,transparent);border-radius:999px;padding:3px}
+.seg button{background:none;border:0;padding:5px 12px;border-radius:999px;cursor:pointer;color:var(--navy-fg);font-family:var(--f-display);font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#1a1405;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--gold)}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#1a1405;font-weight:600}
+.btn.dark{background:transparent;color:var(--navy-fg);border-color:color-mix(in srgb,var(--navy-fg) 30%,transparent)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.btn.big{padding:13px 18px;font-size:17px;width:100%}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;max-width:100%;width:100%}
+input[readonly]{background:var(--surface2);color:var(--fg);font-family:var(--f-mono);cursor:not-allowed}
+textarea{min-height:70px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.full{grid-column:1/-1}
+.checks{display:flex;flex-wrap:wrap;gap:6px 16px}
+.checks label{display:flex;gap:6px;align-items:center;font-size:14px}
+.checks input{width:auto}
+.checks label{text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg);font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.err{color:var(--bad);font-size:14px;min-height:1.2em}
+.muted{color:var(--muted)} .t2{font-size:13px;color:var(--muted);overflow-wrap:anywhere} .t1{font-weight:600;overflow-wrap:anywhere}
+.mono{font-family:var(--f-mono);font-size:12.5px}
+h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.login .card{width:min(400px,100%);display:flex;flex-direction:column;gap:14px;border-top:4px solid var(--gold)}
+/* operator home */
+.acciones{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-block:18px}
+.accion{display:flex;gap:14px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer}
+.accion:hover{border-color:var(--gold)}
+.accion .ic{width:46px;height:46px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--gold-soft);color:var(--gold)}
+.accion .ic svg{width:24px;height:24px}
+.accion b{font-family:var(--f-display);font-size:21px;display:block;line-height:1.1}
+/* scan */
+.scan{background:var(--surface2);border:1px dashed var(--gold);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-block:14px}
+.scan .btns{display:flex;flex-wrap:wrap;gap:8px}
+.vidbox{position:relative;border-radius:10px;overflow:hidden;background:#000;max-width:520px;width:100%;aspect-ratio:4/3}
+.vidbox video{width:100%;height:100%;object-fit:cover;display:block}
+.vidbox .aim{position:absolute;left:8%;right:8%;top:38%;bottom:38%;border:2px solid var(--gold);border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.25)}
+.vidbox .hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 2px #000}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip.imei{border-color:var(--ok);color:var(--ok)}
+.chip.ser{border-color:var(--info);color:var(--info)}
+.okline{background:var(--ok-soft);color:var(--ok);border-radius:var(--r);padding:12px 14px;font-weight:500}
+.warnline{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:12px 14px}
+/* admin */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-block:16px 4px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.kpi .n{font-family:var(--f-display);font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.kpi.alert .n{color:var(--bad)} .kpi.warn .n{color:var(--warn)} .kpi.ok .n{color:var(--ok)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-top:12px;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;cursor:pointer;font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--gold)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:14px}
+.toolbar input[type=search]{flex:1 1 220px;width:auto;min-width:0}
+.toolbar select{width:auto}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(140px,1fr) minmax(150px,1.3fr) 130px auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.head{background:var(--surface2);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.row>*{min-width:0}
+.nrow{grid-template-columns:100px minmax(160px,1.2fr) minmax(180px,2fr) 110px auto}
+.hrow{grid-template-columns:130px 130px minmax(160px,1.2fr) minmax(200px,2fr) 120px}
+.urow{grid-template-columns:minmax(140px,1fr) 110px 120px 100px auto}
+.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.cdtag{font-family:var(--f-display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-Asignado{background:var(--info-soft);color:var(--info)} .p-Disponible,.p-activo{background:var(--ok-soft);color:var(--ok)}
+.p-rep,.p-proc,.p-revisar{background:var(--warn-soft);color:var(--warn)} .p-Perdido,.p-Abierta{background:var(--bad-soft);color:var(--bad)}
+.p-baja,.p-Cerrada,.p-inactivo{background:var(--off-soft);color:var(--off)}
+.empty{padding:32px 18px;text-align:center;color:var(--muted)}
+@media (max-width:760px){
+  .row.head{display:none}
+  .row,.nrow,.hrow,.urow{grid-template-columns:1fr;gap:4px}
+  .acts{justify-content:flex-start;margin-top:6px}
+}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:16px;z-index:20}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(640px,100%);max-height:calc(100% - 20px);overflow:auto;padding:20px}
+.mfoot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:18px}
+.mfoot .left{margin-right:auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--navy);color:var(--navy-fg);padding:10px 16px;border-radius:var(--r);border-left:4px solid var(--gold);z-index:30;max-width:calc(100% - 32px)}
+.back{background:none;border:0;color:var(--muted);cursor:pointer;padding:0;margin-top:14px;font-size:14px}
+.sesion{margin-top:22px}
+.sesion .item{display:flex;gap:10px;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0;font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section class="login" id="vLogin" hidden>
+  <form class="card" id="fLogin" autocomplete="on">
+    <div><div class="eyebrow">Gerencia Llanos · Reparto</div><h2>Equipos de Reparto</h2><div class="t2">Control de celulares e impresoras</div></div>
+    <div class="field"><label for="lUser">Usuario</label><input id="lUser" autocomplete="username" autocapitalize="none" required></div>
+    <div class="field"><label for="lPass">Contraseña</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="lErr"></div>
+    <button class="btn primary big" type="submit" id="lBtn">Ingresar</button>
+    <button class="back" type="button" id="lSetup" hidden>Configuración inicial: crear usuario administrador</button>
+  </form>
+  <form class="card" id="fSetup" hidden>
+    <div><div class="eyebrow">Configuración inicial</div><h2>Crear administrador</h2><div class="t2">Úsalo una sola vez. El primer usuario creado queda como administrador; los siguientes los creas desde la pestaña Usuarios.</div></div>
+    <div class="field"><label for="sUser">Usuario</label><input id="sUser" autocapitalize="none" placeholder="ej. miguel" required></div>
+    <div class="field"><label for="sName">Nombre</label><input id="sName" required></div>
+    <div class="field"><label for="sPass">Contraseña (mínimo 6)</label><input id="sPass" type="password" autocomplete="new-password" required></div>
+    <div class="err" id="sErr"></div>
+    <button class="btn primary big" type="submit">Crear administrador</button>
+    <button class="back" type="button" id="sBack">Volver al ingreso</button>
+  </form>
+</section>
+
+<section class="login" id="vConfig" hidden>
+  <div class="card"><h2>Falta configurar</h2><p>Abre <span class="mono">index.html</span> y pega la Project URL y la anon key de Supabase en el bloque CONFIGURACIÓN.</p></div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="vApp" hidden>
+  <header class="band"><div class="wrap">
+    <div><div class="eyebrow">Gerencia Llanos · Reparto</div><h1>Equipos de Reparto</h1><div class="who" id="who"></div></div>
+    <div class="band-actions">
+      <div class="seg" id="cdSeg" hidden role="group" aria-label="CD">
+        <button type="button" data-cd="" aria-pressed="true">Todos</button><button type="button" data-cd="Villavicencio" aria-pressed="false">Villavicencio</button><button type="button" data-cd="Yopal" aria-pressed="false">Yopal</button>
+      </div>
+      <button class="btn dark" id="btnExport" hidden type="button">Exportar Excel</button>
+      <button class="btn dark" id="btnPass" type="button">Mi contraseña</button>
+      <button class="btn dark" id="btnOut" type="button">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <div class="tabs" id="adminTabs" hidden role="tablist">
+      <button class="tab" data-tab="reg" aria-selected="true">Registrar</button>
+      <button class="tab" data-tab="eq" aria-selected="false">Equipos</button>
+      <button class="tab" data-tab="nov" aria-selected="false">Novedades</button>
+      <button class="tab" data-tab="his" aria-selected="false">Historial</button>
+      <button class="tab" data-tab="usr" aria-selected="false">Usuarios</button>
+    </div>
+
+    <!-- Registrar (operadores y admin) -->
+    <section id="pReg">
+      <div id="regHome">
+        <div class="acciones">
+          <button class="accion" data-acc="alta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v6M9 11h6"/></svg></span><span><b>Registrar equipo nuevo</b><span class="t2">Alta de celular o impresora</span></span></button>
+          <button class="accion" data-acc="asignacion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 4v16"/></svg></span><span><b>Entregar equipo</b><span class="t2">Asignar a conductor o auxiliar</span></span></button>
+          <button class="accion" data-acc="devolucion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12H8M12 6l-6 6 6 6"/><path d="M4 4v16"/></svg></span><span><b>Recibir equipo</b><span class="t2">Devolución al cierre</span></span></button>
+          <button class="accion" data-acc="novedad"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></span><span><b>Reportar novedad</b><span class="t2">Daño, pérdida o falla</span></span></button>
+        </div>
+        <div class="sesion" id="sesion" hidden><div class="lbl">Registros de esta sesión</div><div id="sesionList"></div></div>
+      </div>
+      <div id="regForm" hidden></div>
+    </section>
+
+    <section id="pEq" hidden>
+      <div class="kpis" id="kpis"></div>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Buscar serial, IMEI, persona, ruta o placa">
+        <select id="fTipo"><option value="">Todos los tipos</option><option>Celular</option><option>Impresora</option></select>
+        <select id="fEstado"><option value="">Todos los estados</option><option>Asignado</option><option>Disponible</option><option>En reparación</option><option>Perdido</option><option>Dado de baja</option><option value="revisar">Por revisar</option></select>
+        <button class="btn" id="btnReload" type="button">Actualizar</button>
+      </div>
+      <div class="list" id="listEq"></div>
+    </section>
+    <section id="pNov" hidden>
+      <div class="toolbar"><input type="search" id="qn" placeholder="Buscar novedad"><select id="fNov"><option value="abiertas">Abiertas y en proceso</option><option value="">Todas</option><option>Cerrada</option></select></div>
+      <div class="list" id="listNov"></div>
+    </section>
+    <section id="pHis" hidden>
+      <div class="toolbar"><input type="search" id="qh" placeholder="Buscar en historial (equipo, persona, usuario)"></div>
+      <div class="list" id="listHis"></div>
+    </section>
+    <section id="pUsr" hidden>
+      <div class="card" style="margin-top:16px">
+        <h2>Crear usuario</h2><div class="t2" style="margin-bottom:12px">Los operadores solo pueden registrar; no ven el inventario ni el historial.</div>
+        <form id="fUser" class="grid2">
+          <div class="field"><label for="uUser">Usuario</label><input id="uUser" autocapitalize="none" placeholder="ej. jperez" required></div>
+          <div class="field"><label for="uName">Nombre completo</label><input id="uName" required></div>
+          <div class="field"><label for="uPass">Contraseña inicial</label><input id="uPass" autocomplete="new-password" placeholder="mínimo 6 caracteres" required></div>
+          <div class="field"><label for="uCd">CD</label><select id="uCd"><option>Villavicencio</option><option>Yopal</option></select></div>
+          <div class="field"><label for="uRol">Rol</label><select id="uRol"><option value="operador">Operador (solo registra)</option><option value="admin">Administrador (ve todo)</option></select></div>
+          <div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit" id="uBtn">Crear usuario</button></div>
+          <div class="err full" id="uErr"></div>
+        </form>
+      </div>
+      <div class="list" id="listUsr" style="margin-top:16px"></div>
+    </section>
+    <div style="height:40px"></div>
+  </main>
+</div>
+
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<div id="modalRoot"></div><div id="toastRoot"></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const fmtD = d => { if(!d) return '—'; const [y,m,dd]=String(d).slice(0,10).split('-'); return `${dd}/${m}/${y}`; };
+const fmtTs = t => new Date(t).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});
+const opt = (arr,v) => arr.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');
+const fv = id => ($('#'+id)?.value ?? '').trim();
+function toast(m){ const r=$('#toastRoot'); r.innerHTML=`<div class="toast" role="status">${esc(m)}</div>`; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML='',3500); }
+
+const ESTADOS=['Asignado','Disponible','En reparación','Perdido','Dado de baja'];
+const CARGOS=['Conductor','Auxiliar de reparto','Vendedor / preventa','Supervisor','Otro'];
+const ACCES=['Cargador','Cable','Funda / estuche','Batería extra','Rollo de papel','Base / soporte'];
+const TIPOS_NOV=['Pantalla rota','No enciende','Falla de batería','Falla de impresión','No conecta Bluetooth','Daño por agua','Pérdida','Hurto','Falla de software / app','Otro'];
+const pillCls = e => ({'En reparación':'p-rep','Dado de baja':'p-baja','En proceso':'p-proc'}[e] || 'p-'+e);
+const pill = e => `<span class="pill ${pillCls(e)}">${esc(e)}</span>`;
+
+if(!/^https:\/\//.test(CONFIG.SUPABASE_URL) || CONFIG.SUPABASE_KEY.startsWith('PEGA')){ $('#vConfig').hidden=false; return; }
+const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[] };
+const emailDe = u => u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@${CONFIG.DOMINIO}`;
+
+// ===================== AUTH =====================
+$('#fLogin').addEventListener('submit', async ev => { ev.preventDefault();
+  const b=$('#lBtn'); b.disabled=true; $('#lErr').textContent='';
+  const { error } = await sb.auth.signInWithPassword({ email: emailDe(fv('lUser')), password: $('#lPass').value });
+  b.disabled=false;
+  if(error){ $('#lErr').textContent = /invalid/i.test(error.message)?'Usuario o contraseña incorrectos.':(/confirm/i.test(error.message)?'Usuario sin confirmar: en Supabase desactiva "Confirm email" (ver guía).':'No se pudo ingresar: '+error.message); return; }
+  boot();
+});
+$('#lSetup').onclick=()=>{ $('#fLogin').hidden=true; $('#fSetup').hidden=false; };
+$('#sBack').onclick=()=>{ $('#fSetup').hidden=true; $('#fLogin').hidden=false; };
+$('#fSetup').addEventListener('submit', async ev => { ev.preventDefault();
+  const u=fv('sUser').toLowerCase(); $('#sErr').textContent='';
+  if(!/^[a-z0-9._-]{3,30}$/.test(u)){ $('#sErr').textContent='Usuario: 3 a 30 letras minúsculas, números, punto o guion.'; return; }
+  if($('#sPass').value.length<6){ $('#sErr').textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
+  const { data, error } = await sb.auth.signUp({ email: emailDe(u), password: $('#sPass').value, options:{ data:{ nombre: fv('sName') } } });
+  if(error){ $('#sErr').textContent='No se pudo crear: '+error.message; return; }
+  if(!data.session){ $('#sErr').textContent='Usuario creado, pero Supabase pide confirmar correo. Desactiva "Confirm email" (ver guía) y vuelve a ingresar.'; return; }
+  boot();
+});
+$('#btnPass').onclick=()=>modal(`<h2>Cambiar mi contraseña</h2><form id="fMy"><div class="grid2">
+  <div class="field"><label for="my1">Nueva contraseña</label><input id="my1" type="password" autocomplete="new-password" required></div>
+  <div class="field"><label for="my2">Repetir contraseña</label><input id="my2" type="password" autocomplete="new-password" required></div></div>
+  <div class="err" id="myErr"></div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`,
+  close=>$('#fMy').addEventListener('submit',async ev=>{ ev.preventDefault();
+    const a=$('#my1').value, b=$('#my2').value;
+    if(a.length<6){ $('#myErr').textContent='Mínimo 6 caracteres.'; return; }
+    if(a!==b){ $('#myErr').textContent='Las contraseñas no coinciden.'; return; }
+    const {error}=await sb.auth.updateUser({password:a});
+    if(error){ $('#myErr').textContent=/same|different/i.test(error.message)?'La nueva contraseña debe ser distinta a la actual.':'No se pudo cambiar: '+error.message; return; }
+    close(); toast('Contraseña actualizada'); }));
+$('#btnOut').onclick=async()=>{ stopCam(); await sb.auth.signOut(); location.reload(); };
+
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ $('#vLogin').hidden=false; $('#vApp').hidden=true; return; }
+  S.me=session.user;
+  const { data:p } = await sb.from('perfiles').select('*').eq('id', S.me.id).maybeSingle();
+  S.perfil=p;
+  if(!p || !p.activo){ $('#vLogin').hidden=false; $('#vApp').hidden=true; $('#lErr').textContent='Tu usuario aún no está activo. Pide al administrador que lo active.'; await sb.auth.signOut(); return; }
+  S.admin = p.rol==='admin';
+  $('#vLogin').hidden=true; $('#vApp').hidden=false;
+  $('#who').textContent = `${p.nombre||p.usuario} · ${S.admin?'Administrador':'Operador'}${p.cd?' · '+p.cd:''}`;
+  ['#adminTabs','#cdSeg','#btnExport'].forEach(s=>$(s).hidden=!S.admin);
+  if(S.admin) loadAll();
+}
+
+// ===================== ESCANEO =====================
+function isImei(v){ v=String(v).replace(/\D/g,''); if(v.length!==15) return false; let s=0; for(let i=0;i<15;i++){ let d=+v[i]; if(i%2){ d*=2; if(d>9) d-=9; } s+=d; } return s%10===0; }
+const isSerialCand = c => !isImei(c) && /^[A-Z0-9\-\/]{5,24}$/i.test(c) && !/^\d{8}$|^\d{12,14}$/.test(c) && !/^\d{15,17}$/.test(c);
+let cam = { stream:null, timer:null, det:null, busy:false };
+let SC = null;   // estado del escaneo actual: {imeis:[], serial:'', codes:[], origen}
+
+function toLum(px){ const l=new Uint8ClampedArray(px.length/4); for(let i=0,j=0;i<px.length;i+=4,j++) l[j]=(px[i]*306+px[i+1]*601+px[i+2]*117)>>10; return l; }
+const zx = (() => { if(typeof ZXing==='undefined') return null; const h=new Map(); h.set(ZXing.DecodeHintType.TRY_HARDER,true); const r=new ZXing.MultiFormatReader(); r.setHints(h); return r; })();
+function zxDecode(ctx,x,y,w,h){
+  if(!zx) return null;
+  try{ const d=ctx.getImageData(x,y,w,h); const src=new ZXing.RGBLuminanceSource(toLum(d.data),w,h);
+    const r=zx.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src))); return r?.getText()?.trim()||null; }
+  catch{ return null; } finally{ zx.reset(); }
+}
+async function nativeDetector(){
+  if(cam.det!==null) return cam.det;
+  cam.det=false;
+  if('BarcodeDetector' in window){ try{ const f=await BarcodeDetector.getSupportedFormats(); if(f.length) cam.det=new BarcodeDetector({formats:f}); }catch{} }
+  return cam.det;
+}
+async function detectIn(source, canvas, full){
+  const out=new Set(); const det=await nativeDetector();
+  if(det){ try{ (await det.detect(source)).forEach(b=>b.rawValue&&out.add(b.rawValue.trim())); }catch{} }
+  if(!out.size || full){
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const W=canvas.width,H=canvas.height;
+    const crops = full ? [[0,0,W,H],...[0,1,2,3].map(i=>[0,Math.round(i*H/4),W,Math.round(H/4)]),...[0,1,2].map(i=>[0,Math.round(i*H/3),W,Math.round(H/3)])]
+                       : [[0,Math.round(H*.3),W,Math.round(H*.4)],[0,0,W,H]];
+    for(const c of crops){ const t=zxDecode(ctx,...c); if(t) out.add(t); }
+  }
+  return [...out];
+}
+function addCode(raw, origen){
+  if(!SC) return false; let c=String(raw).trim().replace(/^IMEI\s*\d?\s*[:\-]?\s*/i,'');
+  if(SC.codes.includes(c)) return false;
+  SC.codes.push(c); SC.origen = SC.origen||origen;
+  const d=c.replace(/\D/g,'');
+  if(isImei(d) && /^\D*\d{15}\D*$/.test(c)){ if(!SC.imeis.includes(d) && SC.imeis.length<2) SC.imeis.push(d); }
+  else if(!SC.serial && isSerialCand(c)) SC.serial=c.toUpperCase();
+  try{ navigator.vibrate?.(60); }catch{}
+  renderScan(); return true;
+}
+function renderScan(){
+  if(!SC) return;
+  $('#scImei').value=SC.imeis[0]||''; $('#scImei2').value=SC.imeis[1]||''; $('#scSerial').value=SC.serial||'';
+  $('#scChips').innerHTML = SC.codes.length ? SC.codes.map((c,i)=>{ const d=c.replace(/\D/g,''); const k=isImei(d)&&SC.imeis.includes(d)?'imei':(c.toUpperCase()===SC.serial?'ser':''); return `<button type="button" class="chip ${k}" data-ci="${i}" title="${k?'':'Tocar para usar como serial'}">${esc(c)}</button>`; }).join('') : '<span class="t2">Aún no se han leído códigos.</span>';
+  $('#scChips').querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ const c=SC.codes[+b.dataset.ci]; if(isSerialCand(c)){ SC.serial=c.toUpperCase(); renderScan(); } });
+  const st=$('#scState'); const ok = SC.imeis.length||SC.serial;
+  st.textContent = ok ? `Leído: ${[SC.imeis[0]&&'IMEI '+SC.imeis[0], SC.imeis[1]&&'IMEI 2 '+SC.imeis[1], SC.serial&&'S/N '+SC.serial].filter(Boolean).join(' · ')}` : '';
+}
+async function startCam(){
+  if(!navigator.mediaDevices?.getUserMedia){ toast('Este navegador no permite usar la cámara. Usa "Foto de etiqueta".'); return; }
+  try{ cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false}); }
+  catch{ toast('No se pudo abrir la cámara. Revisa el permiso de cámara del navegador.'); return; }
+  const v=$('#scVideo'); v.srcObject=cam.stream; $('#scVid').hidden=false; await v.play().catch(()=>{});
+  $('#scCam').textContent='Cerrar cámara';
+  const cv=document.createElement('canvas');
+  cam.timer=setInterval(async()=>{
+    if(cam.busy || !v.videoWidth) return; cam.busy=true;
+    try{ const k=Math.min(1,1280/v.videoWidth); cv.width=Math.round(v.videoWidth*k); cv.height=Math.round(v.videoHeight*k);
+      cv.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,cv.width,cv.height);
+      (await detectIn(v,cv,false)).forEach(c=>addCode(c,'Escaneo cámara')); }
+    finally{ cam.busy=false; }
+  }, 300);
+}
+function stopCam(){ clearInterval(cam.timer); cam.timer=null; cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; const b=$('#scVid'); if(b) b.hidden=true; const c=$('#scCam'); if(c) c.textContent='Abrir cámara'; }
+function pickPhoto(){ return new Promise(res=>{ const i=$('#camIn'); i.value=''; const on=()=>{ i.removeEventListener('change',on); res(i.files[0]||null); }; i.addEventListener('change',on); i.click(); }); }
+async function photoCanvas(file,max=2200){
+  const url=URL.createObjectURL(file);
+  try{ const img=await new Promise((ok,ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src=url; });
+    const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)); const c=document.createElement('canvas'); c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
+    c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height); return c; } finally{ URL.revokeObjectURL(url); }
+}
+async function scanPhoto(){
+  const f=await pickPhoto(); if(!f) return; $('#scState').textContent='Buscando códigos en la foto…';
+  try{ const c=await photoCanvas(f); const codes=await detectIn(c,c,true); let n=0; codes.forEach(x=>{ if(addCode(x,'Escaneo foto')) n++; });
+    if(!n) $('#scState').textContent='No encontré códigos de barras. Acércate más, con buena luz y sin reflejos.'; else renderScan(); }
+  catch{ $('#scState').textContent='No se pudo leer la foto.'; }
+}
+let tessLoading=null;
+function loadTesseract(){ if(window.Tesseract) return Promise.resolve(); return tessLoading ||= new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js'; s.onload=ok; s.onerror=ko; document.head.appendChild(s); }); }
+async function scanScreen(){
+  const f=await pickPhoto(); if(!f) return;
+  const st=$('#scState'); st.textContent='Leyendo la pantalla… (la primera vez tarda unos segundos)';
+  try{
+    const c=await photoCanvas(f,1800);
+    const codes=await detectIn(c,c,true); codes.forEach(x=>addCode(x,'Escaneo pantalla'));
+    await loadTesseract();
+    const { data:{ text } } = await Tesseract.recognize(c,'eng');
+    const found=new Set();
+    text.split('\n').forEach(line=>{ const d=line.replace(/[^\d]/g,''); for(let i=0;i+15<=d.length;i++){ const w=d.slice(i,i+15); if(isImei(w)) found.add(w); } });
+    let n=0; found.forEach(x=>{ if(addCode(x,'Lectura pantalla *#06#')) n++; });
+    if(!SC.imeis.length) st.textContent='No pude leer un IMEI válido. Toma la foto de frente, sin reflejo, y que se vean bien los números.'; else renderScan();
+  }catch{ st.textContent='No se pudo leer la pantalla. Revisa tu conexión e inténtalo de nuevo.'; }
+}
+function scanPanel(){
+  const ro = S.admin ? '' : 'readonly';
+  return `<div class="scan">
+    <div><div class="lbl">1 · Escanea el equipo</div><div class="t2">${S.admin?'Escanea o escribe los datos (como administrador puedes digitarlos).':'El IMEI y el serial solo se llenan escaneando. Apunta a los códigos de barras de la caja o del sticker, o lee la pantalla de *#06#.'}</div></div>
+    <div class="btns">
+      <button type="button" class="btn primary" id="scCam">Abrir cámara</button>
+      <button type="button" class="btn" id="scPhoto">Foto de etiqueta</button>
+      <button type="button" class="btn" id="scScreen">Leer pantalla *#06#</button>
+      <button type="button" class="btn sm" id="scClear">Limpiar</button>
+    </div>
+    <div class="vidbox" id="scVid" hidden><video id="scVideo" playsinline muted></video><div class="aim"></div><div class="hint">Centra un código de barras en el recuadro</div></div>
+    <div class="chips" id="scChips"></div>
+    <div class="t2" id="scState"></div>
+    <div class="grid2">
+      <div class="field"><label for="scImei">IMEI</label><input id="scImei" inputmode="numeric" ${ro}></div>
+      <div class="field"><label for="scImei2">IMEI 2</label><input id="scImei2" inputmode="numeric" ${ro}></div>
+      <div class="field"><label for="scSerial">Serial</label><input id="scSerial" ${ro}></div>
+    </div>
+  </div>`;
+}
+function bindScan(){
+  SC={imeis:[],serial:'',codes:[],origen:''};
+  $('#scCam').onclick=()=> cam.stream ? stopCam() : startCam();
+  $('#scPhoto').onclick=scanPhoto; $('#scScreen').onclick=scanScreen;
+  $('#scClear').onclick=()=>{ SC={imeis:[],serial:'',codes:[],origen:''}; renderScan(); $('#scState').textContent=''; };
+  if(S.admin){ ['scImei','scImei2','scSerial'].forEach(id=>$('#'+id).addEventListener('input',()=>{ SC.manual=true; })); }
+  renderScan();
+}
+function scanValues(){
+  if(S.admin) return { imei:fv('scImei').replace(/\D/g,''), imei2:fv('scImei2').replace(/\D/g,''), serial:fv('scSerial').toUpperCase(), origen: SC.manual?'Manual (admin)':(SC.origen||'Manual (admin)') };
+  return { imei:SC.imeis[0]||'', imei2:SC.imeis[1]||'', serial:SC.serial||'', origen:SC.origen||'Escaneo' };
+}
+
+// ===================== FORMULARIOS DE REGISTRO =====================
+const TITULOS={alta:'Registrar equipo nuevo',asignacion:'Entregar equipo',devolucion:'Recibir equipo',novedad:'Reportar novedad'};
+function tipoCd(){ const cd=S.perfil?.cd||'Villavicencio';
+  return `<div class="field"><label for="rTipo">Tipo</label><select id="rTipo">${opt(['Celular','Impresora'],'Celular')}</select></div>
+          <div class="field"><label for="rCd">CD</label><select id="rCd">${opt(['Villavicencio','Yopal'],cd)}</select></div>`; }
+const accChecks = () => `<div class="field full"><span class="lbl">Accesorios</span><div class="checks">${ACCES.map((a,i)=>`<label><input type="checkbox" id="rAcc${i}" value="${esc(a)}"> ${esc(a)}</label>`).join('')}</div></div>`;
+function openForm(acc){
+  $('#regHome').hidden=true; const F=$('#regForm'); F.hidden=false;
+  let campos='';
+  if(acc==='alta') campos = `${tipoCd()}
+    <div class="field"><label for="rMarca">Marca</label><input id="rMarca" placeholder="Ej. Samsung, Zebra"></div>
+    <div class="field"><label for="rModelo">Modelo</label><input id="rModelo" placeholder="Ej. Galaxy A15, ZQ220"></div>
+    <div class="field"><label for="rLinea">Línea / SIM</label><input id="rLinea" inputmode="tel"></div>
+    <div class="field"><label for="rOper">Operador</label><select id="rOper">${opt(['','Claro','Movistar','Tigo','WOM','Otro'],'')}</select></div>
+    ${accChecks()}<div class="field full"><label for="rObs">Observaciones</label><textarea id="rObs"></textarea></div>`;
+  if(acc==='asignacion') campos = `
+    <div class="field"><label for="rPers">Se entrega a *</label><input id="rPers" placeholder="Nombre completo"></div>
+    <div class="field"><label for="rCargo">Cargo</label><select id="rCargo">${opt(CARGOS,'Conductor')}</select></div>
+    <div class="field"><label for="rRuta">Ruta</label><input id="rRuta" placeholder="Ej. 101"></div>
+    <div class="field"><label for="rPlaca">Placa</label><input id="rPlaca" style="text-transform:uppercase" placeholder="Ej. TTX123"></div>
+    <div class="field"><label for="rFecha">Fecha</label><input id="rFecha" type="date" value="${today()}"></div>
+    ${tipoCd()}${accChecks()}`;
+  if(acc==='devolucion') campos = `
+    <div class="field"><label for="rEst">El equipo queda</label><select id="rEst">${opt(['Disponible','En reparación','Dado de baja'],'Disponible')}</select></div>
+    ${tipoCd()}<div class="field full"><label for="rObs">Condición al recibir</label><textarea id="rObs" placeholder="Ej. Completo con cargador y funda"></textarea></div>`;
+  if(acc==='novedad') campos = `
+    <div class="field"><label for="rTnov">Tipo de novedad</label><select id="rTnov">${opt(TIPOS_NOV,'Pantalla rota')}</select></div>
+    <div class="field"><label for="rFecha">Fecha</label><input id="rFecha" type="date" value="${today()}"></div>
+    <div class="field"><label for="rRep">Reportado por</label><input id="rRep" value="${esc(S.perfil?.nombre||'')}"></div>
+    <div class="field"><label for="rNest">Cambiar equipo a</label><select id="rNest"><option value="">Sin cambio</option>${opt(['En reparación','Perdido','Dado de baja'],'')}</select></div>
+    ${tipoCd()}<div class="field full"><label for="rDesc">Descripción</label><textarea id="rDesc" placeholder="Qué pasó, dónde y cuándo"></textarea></div>`;
+  F.innerHTML = `<button class="back" id="rBack">← Volver</button><h2 style="margin-top:8px">${TITULOS[acc]}</h2>
+    ${scanPanel()}
+    <form id="fReg"><div class="lbl" style="margin-bottom:8px">2 · Completa los datos</div><div class="grid2">${campos}</div>
+    <div class="err" id="rErr" style="margin-top:10px"></div>
+    <button class="btn primary big" type="submit" id="rBtn" style="margin-top:8px">Guardar</button></form>`;
+  bindScan();
+  $('#rBack').onclick=closeForm;
+  $('#rTnov')?.addEventListener('change',()=>{ if(/Pérdida|Hurto/.test(fv('rTnov'))) $('#rNest').value='Perdido'; });
+  $('#fReg').addEventListener('submit', ev=>{ ev.preventDefault(); guardar(acc); });
+}
+function closeForm(){ stopCam(); SC=null; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false; }
+async function guardar(acc){
+  const err=$('#rErr'); err.textContent='';
+  const v=scanValues(), tipo=fv('rTipo');
+  if(!v.imei && !v.serial){ err.textContent='Primero escanea el IMEI o el serial del equipo.'; return; }
+  if(acc==='alta' && tipo==='Celular' && !S.admin && !isImei(v.imei)){ err.textContent='Para registrar un celular necesitas escanear un IMEI válido (caja, sticker o pantalla *#06#).'; return; }
+  if(acc==='alta' && tipo==='Impresora' && !v.serial){ err.textContent='Para una impresora escanea el código de barras del serial.'; return; }
+  if(S.admin && v.imei && !isImei(v.imei)){ err.textContent='El IMEI no es válido (15 dígitos con dígito verificador).'; return; }
+  const p={ accion:acc, tipo, cd:fv('rCd'), imei:v.imei, imei2:v.imei2, serial:v.serial, origen:v.origen };
+  const acc_ = ACCES.filter((a,i)=>$('#rAcc'+i)?.checked);
+  if(acc==='alta') Object.assign(p,{marca:fv('rMarca'),modelo:fv('rModelo'),linea:fv('rLinea'),operador_tel:fv('rOper'),accesorios:acc_,obs:fv('rObs')});
+  if(acc==='asignacion'){ if(!fv('rPers')){ err.textContent='Indica a quién se entrega el equipo.'; return; }
+    Object.assign(p,{asignado_a:fv('rPers'),cargo:fv('rCargo'),ruta:fv('rRuta'),placa:fv('rPlaca').toUpperCase(),fecha:fv('rFecha'),accesorios:acc_}); }
+  if(acc==='devolucion') Object.assign(p,{estado:fv('rEst'),obs:fv('rObs')});
+  if(acc==='novedad') Object.assign(p,{tipo_novedad:fv('rTnov'),fecha:fv('rFecha'),reportado_por:fv('rRep'),nuevo_estado:fv('rNest'),descripcion:fv('rDesc')});
+  const b=$('#rBtn'); b.disabled=true; b.textContent='Guardando…';
+  const { data, error } = await sb.rpc('registrar',{ p });
+  b.disabled=false; b.textContent='Guardar';
+  if(error){ err.textContent = error.message || 'No se pudo guardar. Revisa tu conexión.'; return; }
+  stopCam();
+  S.sesion.unshift({ts:Date.now(),acc,id:v.imei||v.serial,msg:data});
+  $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
+    <div class="t2" style="margin-top:8px">${esc(TITULOS[acc])} · ${esc(v.imei?'IMEI '+v.imei:'S/N '+v.serial)}</div>
+    <div class="grid2" style="margin-top:16px"><button class="btn primary big" id="rOtro">Registrar otro</button><button class="btn big" id="rInicio">Volver al inicio</button></div>`;
+  $('#rOtro').onclick=()=>openForm(acc); $('#rInicio').onclick=closeForm;
+  renderSesion(); if(S.admin) loadAll();
+}
+function renderSesion(){
+  $('#sesion').hidden=!S.sesion.length;
+  $('#sesionList').innerHTML=S.sesion.slice(0,20).map(s=>`<div class="item"><span><b>${esc(TITULOS[s.acc])}</b> · <span class="mono">${esc(s.id)}</span><div class="t2">${esc(s.msg)}</div></span><span class="t2">${new Date(s.ts).toLocaleTimeString('es-CO',{timeStyle:'short'})}</span></div>`).join('');
+}
+document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>openForm(b.dataset.acc));
+
+// ===================== ADMINISTRADOR =====================
+const byCd = r => !S.cd || r.cd===S.cd;
+async function loadAll(){
+  const [e,n,m,u] = await Promise.all([
+    sb.from('equipos').select('*').order('cd').order('tipo'),
+    sb.from('novedades').select('*').order('fecha',{ascending:false}).limit(1000),
+    sb.from('movimientos').select('*, perfiles(nombre,usuario)').order('ts',{ascending:false}).limit(600),
+    sb.from('perfiles').select('*').order('creado')
+  ]);
+  if(e.error||n.error||m.error||u.error){ toast('No se pudieron cargar los datos. Revisa tu conexión.'); return; }
+  S.eq=e.data; S.nov=n.data; S.mov=m.data; S.usr=u.data; renderAdmin();
+}
+function renderAdmin(){
+  const eq=S.eq.filter(byCd), nov=S.nov.filter(byCd); const c=f=>eq.filter(f).length; const ab=nov.filter(x=>x.estado!=='Cerrada').length; const rv=c(x=>x.revisar);
+  $('#kpis').innerHTML=[['Equipos',eq.length,''],['Celulares',c(x=>x.tipo==='Celular'),''],['Impresoras',c(x=>x.tipo==='Impresora'),''],['Asignados',c(x=>x.estado==='Asignado'),''],['Disponibles',c(x=>x.estado==='Disponible'),'ok'],['En reparación',c(x=>x.estado==='En reparación'),'warn'],['Perdidos',c(x=>x.estado==='Perdido'),c(x=>x.estado==='Perdido')?'alert':''],['Novedades abiertas',ab,ab?'alert':''],['Por revisar',rv,rv?'warn':'']]
+    .map(([l,n,k])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  renderEq(eq); renderNov(nov); renderHis(); renderUsr();
+}
+function renderEq(eq){
+  const q=fv('q').toLowerCase(), ft=fv('fTipo'), fe=fv('fEstado');
+  const rows=eq.filter(e=>(!ft||e.tipo===ft)&&(!fe||(fe==='revisar'?e.revisar:e.estado===fe))&&(!q||[e.serial,e.imei,e.imei2,e.linea,e.asignado_a,e.ruta,e.placa,e.marca,e.modelo].join(' ').toLowerCase().includes(q)));
+  const L=$('#listEq');
+  if(!S.eq.length){ L.innerHTML='<div class="empty"><b>Aún no hay equipos.</b><br>Regístralos desde la pestaña Registrar o pide a los operadores que escaneen sus equipos.</div>'; return; }
+  if(!rows.length){ L.innerHTML='<div class="empty">Ningún equipo coincide con los filtros.</div>'; return; }
+  const ab={}; S.nov.forEach(n=>{ if(n.estado!=='Cerrada') ab[n.equipo_id]=(ab[n.equipo_id]||0)+1; });
+  L.innerHTML=`<div class="row head"><span>Equipo</span><span>Identificación</span><span>Asignado a</span><span>Estado</span><span></span></div>`+rows.map(e=>`<div class="row">
+    <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div>${e.accesorios?.length?`<div class="t2">${esc(e.accesorios.join(', '))}</div>`:''}</div>
+    <div><div class="mono">S/N ${esc(e.serial||'—')}</div>${e.imei?`<div class="mono t2">IMEI ${esc(e.imei)}${e.imei2?' / '+esc(e.imei2):''}</div>`:''}${e.linea?`<div class="mono t2">Línea ${esc(e.linea)} ${esc(e.operador_tel)}</div>`:''}<div class="t2">${esc(e.origen_datos)}</div></div>
+    <div>${e.estado==='Asignado'?`<div class="t1">${esc(e.asignado_a)}</div><div class="t2">${esc([e.cargo,e.ruta&&'Ruta '+e.ruta,e.placa].filter(Boolean).join(' · '))}</div><div class="t2">Desde ${fmtD(e.fecha_asignacion)}</div>`:'<span class="t2">Sin asignar</span>'}</div>
+    <div>${pill(e.estado)} ${e.revisar?'<span class="pill p-revisar">Revisar</span>':''}${ab[e.id]?`<div class="t2" style="color:var(--bad)">${ab[e.id]} novedad(es) abierta(s)</div>`:''}</div>
+    <div class="acts"><button class="btn sm" data-edit="${e.id}">Editar</button></div></div>`).join('');
+}
+function renderNov(nov){
+  const q=fv('qn').toLowerCase(), f=fv('fNov');
+  const rows=nov.filter(n=>(f==='abiertas'?n.estado!=='Cerrada':(!f||n.estado===f))&&(!q||[n.serial,n.imei,n.tipo_novedad,n.asignado_a,n.reportado_por,n.descripcion].join(' ').toLowerCase().includes(q)));
+  const L=$('#listNov');
+  if(!rows.length){ L.innerHTML='<div class="empty">Sin novedades con estos filtros.</div>'; return; }
+  L.innerHTML=`<div class="row head nrow"><span>Fecha</span><span>Equipo</span><span>Novedad</span><span>Estado</span><span></span></div>`+rows.map(n=>`<div class="row nrow">
+    <div><div class="mono">${fmtD(n.fecha)}</div><div class="cdtag">${esc(n.cd)}</div></div>
+    <div><div class="t1">${esc(n.equipo_tipo)} · <span class="mono">${esc(n.serial||n.imei)}</span></div><div class="t2">${esc([n.asignado_a,n.ruta&&'Ruta '+n.ruta].filter(Boolean).join(' · ')||'Sin asignar')}</div></div>
+    <div><div class="t1">${esc(n.tipo_novedad)}</div><div class="t2">${esc(n.descripcion)}</div><div class="t2">Reportó: ${esc(n.reportado_por||'—')}</div>${n.estado==='Cerrada'?`<div class="t2"><b>Cierre ${fmtD(n.fecha_cierre)}:</b> ${esc(n.solucion)}${n.costo?' · $'+Number(n.costo).toLocaleString('es-CO'):''}</div>`:''}</div>
+    <div>${pill(n.estado)}</div>
+    <div class="acts">${n.estado!=='Cerrada'?`${n.estado==='Abierta'?`<button class="btn sm" data-proc="${n.id}">En proceso</button>`:''}<button class="btn sm" data-cerrar="${n.id}">Cerrar</button>`:''}</div></div>`).join('');
+}
+function renderHis(){
+  const q=fv('qh').toLowerCase();
+  const rows=S.mov.filter(m=>byCd(m)&&(!q||[m.accion,m.serial,m.imei,m.detalle,m.perfiles?.nombre,m.perfiles?.usuario].join(' ').toLowerCase().includes(q)));
+  const L=$('#listHis');
+  if(!rows.length){ L.innerHTML='<div class="empty">Sin movimientos.</div>'; return; }
+  L.innerHTML=`<div class="row head hrow"><span>Fecha</span><span>Acción</span><span>Equipo</span><span>Detalle</span><span>Registró</span></div>`+rows.map(m=>`<div class="row hrow">
+    <div class="mono">${fmtTs(m.ts)}</div><div class="t1">${esc(m.accion)}</div><div><span class="cdtag">${esc(m.cd)}</span> ${esc(m.equipo_tipo)} <span class="mono">${esc(m.serial||m.imei)}</span></div><div class="t2">${esc(m.detalle)}${m.payload?.origen?' · '+esc(m.payload.origen):''}</div><div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('');
+}
+function renderUsr(){
+  const L=$('#listUsr');
+  L.innerHTML=`<div class="row head urow"><span>Persona</span><span>Rol</span><span>CD</span><span>Estado</span><span></span></div>`+S.usr.map(u=>`<div class="row urow">
+    <div><div class="t1">${esc(u.nombre||u.usuario)}</div><div class="mono t2">${esc(u.usuario)}</div></div>
+    <div>${u.rol==='admin'?'Administrador':(u.rol==='operador'?'Operador':'Pendiente')}</div><div>${esc(u.cd||'—')}</div>
+    <div><span class="pill ${u.activo?'p-activo':'p-inactivo'}">${u.activo?'Activo':'Inactivo'}</span></div>
+    <div class="acts">${u.id===S.me.id?'<span class="t2">Tú</span>':`<button class="btn sm" data-uact="${u.id}">${u.activo?'Desactivar':'Activar'}</button><button class="btn sm" data-upass="${u.id}">Cambiar contraseña</button><button class="btn sm" data-urol="${u.id}">${u.rol==='admin'?'Hacer operador':'Hacer admin'}</button>`}</div></div>`).join('');
+}
+
+// ---- modales admin ----
+function modal(html,onMount){
+  const r=$('#modalRoot'); r.innerHTML=`<div class="scrim" id="scrim"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const close=()=>{ r.innerHTML=''; document.removeEventListener('keydown',k); }; const k=ev=>{ if(ev.key==='Escape') close(); };
+  document.addEventListener('keydown',k); $('#scrim').addEventListener('mousedown',ev=>{ if(ev.target.id==='scrim') close(); });
+  r.querySelectorAll('[data-close]').forEach(b=>b.onclick=close); onMount?.(close);
+}
+async function logAdmin(e,accion,detalle){ await sb.from('movimientos').insert({accion,equipo_id:e.id,cd:e.cd,serial:e.serial,imei:e.imei,equipo_tipo:e.tipo,detalle,registrado_por:S.me.id}); }
+function editEquipo(e){
+  modal(`<h2>Editar equipo</h2><div class="t2" style="margin-bottom:12px">${esc(e.cd)} · ${esc(e.tipo)} · S/N ${esc(e.serial||'—')}</div>
+  <form id="fE"><div class="grid2">
+    <div class="field"><label for="eTipo">Tipo</label><select id="eTipo">${opt(['Celular','Impresora'],e.tipo)}</select></div>
+    <div class="field"><label for="eCd">CD</label><select id="eCd">${opt(['Villavicencio','Yopal'],e.cd)}</select></div>
+    <div class="field"><label for="eMarca">Marca</label><input id="eMarca" value="${esc(e.marca)}"></div>
+    <div class="field"><label for="eModelo">Modelo</label><input id="eModelo" value="${esc(e.modelo)}"></div>
+    <div class="field"><label for="eSerial">Serial</label><input id="eSerial" value="${esc(e.serial)}"></div>
+    <div class="field"><label for="eImei">IMEI</label><input id="eImei" value="${esc(e.imei)}"></div>
+    <div class="field"><label for="eImei2">IMEI 2</label><input id="eImei2" value="${esc(e.imei2)}"></div>
+    <div class="field"><label for="eLinea">Línea</label><input id="eLinea" value="${esc(e.linea)}"></div>
+    <div class="field"><label for="eEstado">Estado</label><select id="eEstado">${opt(ESTADOS,e.estado)}</select></div>
+    <div class="field"><label for="eAsig">Asignado a</label><input id="eAsig" value="${esc(e.asignado_a)}"></div>
+    <div class="field"><label for="eCargo">Cargo</label><select id="eCargo">${opt(['',...CARGOS],e.cargo)}</select></div>
+    <div class="field"><label for="eRuta">Ruta</label><input id="eRuta" value="${esc(e.ruta)}"></div>
+    <div class="field"><label for="ePlaca">Placa</label><input id="ePlaca" value="${esc(e.placa)}"></div>
+    <div class="field full"><span class="lbl">Accesorios</span><div class="checks">${ACCES.map((a,i)=>`<label><input type="checkbox" id="eAcc${i}" ${e.accesorios?.includes(a)?'checked':''}> ${esc(a)}</label>`).join('')}</div></div>
+    <div class="field full"><label for="eObs">Observaciones</label><textarea id="eObs">${esc(e.obs)}</textarea></div>
+    <div class="field full"><label class="checks"><input type="checkbox" id="eRev" ${e.revisar?'checked':''}> Marcado para revisión</label></div>
+  </div><div class="err" id="eErr"></div>
+  <div class="mfoot"><button type="button" class="btn danger left" id="eDel">Eliminar</button><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`,
+  close=>{
+    $('#eDel').onclick=async()=>{ const b=$('#eDel'); if(!b.dataset.armed){ b.dataset.armed=1; b.textContent='Confirmar: eliminar definitivamente'; return; }
+      await logAdmin(e,'Equipo eliminado',`${e.marca} ${e.modelo}`.trim()); const {error}=await sb.from('equipos').delete().eq('id',e.id); if(error){ $('#eErr').textContent=error.message; return; } close(); toast('Equipo eliminado'); loadAll(); };
+    $('#fE').addEventListener('submit',async ev=>{ ev.preventDefault();
+      const est=fv('eEstado'); const im=fv('eImei').replace(/\D/g,'');
+      if(im && !isImei(im)){ $('#eErr').textContent='El IMEI no es válido.'; return; }
+      const d={tipo:fv('eTipo'),cd:fv('eCd'),marca:fv('eMarca'),modelo:fv('eModelo'),serial:fv('eSerial').toUpperCase(),imei:im,imei2:fv('eImei2').replace(/\D/g,''),linea:fv('eLinea'),estado:est,
+        asignado_a:est==='Asignado'?fv('eAsig'):'',cargo:est==='Asignado'?fv('eCargo'):'',ruta:est==='Asignado'?fv('eRuta'):'',placa:est==='Asignado'?fv('ePlaca').toUpperCase():'',
+        fecha_asignacion: est==='Asignado' ? (e.fecha_asignacion||today()) : null,
+        accesorios:ACCES.filter((a,i)=>$('#eAcc'+i).checked),obs:fv('eObs'),revisar:$('#eRev').checked,actualizado:new Date().toISOString()};
+      if(d.serial!==e.serial||d.imei!==e.imei) d.origen_datos='Escaneo + ajuste admin';
+      const {error}=await sb.from('equipos').update(d).eq('id',e.id);
+      if(error){ $('#eErr').textContent=/duplicate|unique/i.test(error.message)?'Ese serial o IMEI ya está en otro equipo.':error.message; return; }
+      const cambios=[]; if(d.estado!==e.estado) cambios.push(`${e.estado} → ${d.estado}`); if(d.serial!==e.serial) cambios.push(`serial ${e.serial} → ${d.serial}`); if(d.imei!==e.imei) cambios.push(`IMEI ${e.imei} → ${d.imei}`); if(d.asignado_a!==e.asignado_a) cambios.push(`asignado: ${d.asignado_a||'nadie'}`);
+      await logAdmin({...e,...d},'Edición administrador',cambios.join(' · ')||'Datos actualizados');
+      close(); toast('Cambios guardados'); loadAll(); });
+  });
+}
+function cerrarNov(n){
+  const e=S.eq.find(x=>x.id===n.equipo_id);
+  modal(`<h2>Cerrar novedad</h2><div class="t2" style="margin-bottom:12px">${esc(n.tipo_novedad)} · ${esc(n.serial||n.imei)}</div>
+  <form id="fC"><div class="grid2">
+    <div class="field full"><label for="cSol">Solución</label><textarea id="cSol"></textarea></div>
+    <div class="field"><label for="cFecha">Fecha de cierre</label><input type="date" id="cFecha" value="${today()}"></div>
+    <div class="field"><label for="cCosto">Costo (COP)</label><input id="cCosto" inputmode="numeric" placeholder="0"></div>
+    ${e?`<div class="field"><label for="cEst">Equipo queda</label><select id="cEst"><option value="">Sin cambio (${esc(e.estado)})</option>${opt(['Disponible','Dado de baja'],'')}</select></div>`:''}
+  </div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Cerrar novedad</button></div></form>`,
+  close=>$('#fC').addEventListener('submit',async ev=>{ ev.preventDefault();
+    const costo=Number(fv('cCosto').replace(/\D/g,''))||0, est=e?fv('cEst'):'';
+    const {error}=await sb.from('novedades').update({estado:'Cerrada',solucion:fv('cSol'),fecha_cierre:fv('cFecha')||today(),costo}).eq('id',n.id);
+    if(error){ toast(error.message); return; }
+    if(e&&est) await sb.from('equipos').update({estado:est,asignado_a:'',cargo:'',ruta:'',placa:'',fecha_asignacion:null,actualizado:new Date().toISOString()}).eq('id',e.id);
+    await logAdmin(e||{id:null,cd:n.cd,serial:n.serial,imei:n.imei,tipo:n.equipo_tipo},'Novedad cerrada',`${n.tipo_novedad} · ${fv('cSol')||'sin detalle'}${costo?' · $'+costo.toLocaleString('es-CO'):''}${est?' · equipo queda '+est:''}`);
+    close(); toast('Novedad cerrada'); loadAll(); }));
+}
+function cambiarClave(u){
+  modal(`<h2>Cambiar contraseña</h2><div class="t2" style="margin-bottom:12px">${esc(u.nombre||u.usuario)} · <span class="mono">${esc(u.usuario)}</span></div>
+  <form id="fP"><div class="field"><label for="pNew">Nueva contraseña</label><input id="pNew" autocomplete="new-password" required></div><div class="err" id="pErr"></div>
+  <div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Guardar</button></div></form>`,
+  close=>$('#fP').addEventListener('submit',async ev=>{ ev.preventDefault();
+    const {error}=await sb.rpc('admin_cambiar_clave',{uid:u.id,clave:$('#pNew').value});
+    if(error){ $('#pErr').textContent=error.message; return; } close(); toast('Contraseña actualizada'); }));
+}
+$('#fUser').addEventListener('submit',async ev=>{ ev.preventDefault();
+  const u=fv('uUser').toLowerCase(), err=$('#uErr'); err.textContent='';
+  if(!/^[a-z0-9._-]{3,30}$/.test(u)){ err.textContent='Usuario: 3 a 30 letras minúsculas, números, punto o guion (sin espacios).'; return; }
+  if($('#uPass').value.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
+  if(S.usr.some(x=>x.usuario===u)){ err.textContent='Ese usuario ya existe.'; return; }
+  const b=$('#uBtn'); b.disabled=true;
+  try{
+    const {error}=await sb.rpc('admin_crear_usuario',{p_usuario:u,p_nombre:fv('uName'),p_clave:$('#uPass').value,p_rol:fv('uRol'),p_cd:fv('uCd'),p_dominio:CONFIG.DOMINIO});
+    if(error){ err.textContent='No se pudo crear: '+error.message; return; }
+    toast(`Usuario ${u} creado`);
+    $('#fUser').reset(); loadAll();
+  } finally { b.disabled=false; }
+});
+
+// ---- eventos admin ----
+document.addEventListener('click',async ev=>{
+  const t=ev.target.closest('button'); if(!t) return;
+  if(t.dataset.edit){ const e=S.eq.find(x=>x.id===t.dataset.edit); e&&editEquipo(e); }
+  if(t.dataset.cerrar){ const n=S.nov.find(x=>x.id===t.dataset.cerrar); n&&cerrarNov(n); }
+  if(t.dataset.proc){ await sb.from('novedades').update({estado:'En proceso'}).eq('id',t.dataset.proc); loadAll(); }
+  if(t.dataset.uact){ const u=S.usr.find(x=>x.id===t.dataset.uact); await sb.from('perfiles').update({activo:!u.activo, rol:u.rol==='pendiente'?'operador':u.rol}).eq('id',u.id); loadAll(); }
+  if(t.dataset.urol){ const u=S.usr.find(x=>x.id===t.dataset.urol); await sb.from('perfiles').update({rol:u.rol==='admin'?'operador':'admin'}).eq('id',u.id); loadAll(); }
+  if(t.dataset.upass){ const u=S.usr.find(x=>x.id===t.dataset.upass); cambiarClave(u); }
+});
+document.querySelectorAll('#adminTabs .tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('#adminTabs .tab').forEach(x=>x.setAttribute('aria-selected',x===t));
+  const m={reg:'#pReg',eq:'#pEq',nov:'#pNov',his:'#pHis',usr:'#pUsr'}; Object.entries(m).forEach(([k,s])=>$(s).hidden=k!==t.dataset.tab);
+  if(t.dataset.tab!=='reg') stopCam();
+});
+$('#cdSeg').addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(!b) return; S.cd=b.dataset.cd; $('#cdSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAdmin(); });
+['q','fTipo','fEstado','qn','fNov','qh'].forEach(id=>$('#'+id).addEventListener('input',renderAdmin));
+$('#btnReload').onclick=loadAll;
+$('#btnExport').onclick=()=>{
+  const wb=XLSX.utils.book_new(); const sh=(rows,name)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{'Sin datos':''}]),name);
+  sh(S.eq.filter(byCd).map(e=>({Tipo:e.tipo,CD:e.cd,Marca:e.marca,Modelo:e.modelo,Serial:e.serial,IMEI:e.imei,'IMEI 2':e.imei2,'Línea':e.linea,Operador:e.operador_tel,Estado:e.estado,'Asignado a':e.asignado_a,Cargo:e.cargo,Ruta:e.ruta,Placa:e.placa,'Fecha asignación':e.fecha_asignacion||'',Accesorios:(e.accesorios||[]).join(', '),'Origen datos':e.origen_datos,'Por revisar':e.revisar?'Sí':'',Observaciones:e.obs})),'Equipos');
+  sh(S.nov.filter(byCd).map(n=>({Fecha:n.fecha,CD:n.cd,Tipo:n.equipo_tipo,Serial:n.serial,IMEI:n.imei,'Asignado a':n.asignado_a,Ruta:n.ruta,Novedad:n.tipo_novedad,'Descripción':n.descripcion,'Reportado por':n.reportado_por,Estado:n.estado,'Fecha cierre':n.fecha_cierre||'','Solución':n.solucion,Costo:n.costo||''})),'Novedades');
+  sh(S.mov.filter(byCd).map(m=>({Fecha:fmtTs(m.ts),CD:m.cd,'Acción':m.accion,Tipo:m.equipo_tipo,Serial:m.serial,IMEI:m.imei,Detalle:m.detalle,'Registró':m.perfiles?.nombre||m.perfiles?.usuario||''})),'Historial');
+  XLSX.writeFile(wb,`equipos_reparto_${S.cd||'llanos'}_${today()}.xlsx`);
+};
+
+boot();
+})();
+</script>
+</body>
+</html>
