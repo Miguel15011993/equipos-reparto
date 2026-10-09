@@ -290,10 +290,15 @@ $('#btnPass').onclick=()=>modal(`<h2>Cambiar mi contraseña</h2><form id="fMy"><
     const a=$('#my1').value, b=$('#my2').value;
     if(a.length<6){ $('#myErr').textContent='Mínimo 6 caracteres.'; return; }
     if(a!==b){ $('#myErr').textContent='Las contraseñas no coinciden.'; return; }
-    const {error}=await sb.auth.updateUser({password:a});
-    if(error){ $('#myErr').textContent=/same|different/i.test(error.message)?'La nueva contraseña debe ser distinta a la actual.':'No se pudo cambiar: '+error.message; return; }
-    close(); toast('Contraseña actualizada'); }));
-$('#btnOut').onclick=async()=>{ stopCam(); await sb.auth.signOut(); location.reload(); };
+    const btn=$('#fMy button[type=submit]'); if(btn) btn.disabled=true;
+    await sb.auth.refreshSession().catch(()=>{});
+    const {error}=await sb.rpc('cambiar_mi_clave',{clave:a});
+    if(btn) btn.disabled=false;
+    if(error){
+      if(/JWT|expired|sesión expiró|401/i.test(String(error.message)+String(error.code))){ $('#myErr').textContent='Tu sesión expiró. Sal, vuelve a entrar e inténtalo de nuevo.'; return; }
+      $('#myErr').textContent='No se pudo cambiar: '+error.message; return; }
+    close(); toast('Contraseña actualizada. Úsala la próxima vez que entres.'); }));
+$('#btnOut').onclick=async()=>{ stopCam(); await sb.auth.signOut({scope:'local'}); location.reload(); };
 
 async function boot(){
   const { data:{ session } } = await sb.auth.getSession();
@@ -301,7 +306,7 @@ async function boot(){
   S.me=session.user;
   const { data:p } = await sb.from('perfiles').select('*').eq('id', S.me.id).maybeSingle();
   S.perfil=p;
-  if(!p || !p.activo){ $('#vLogin').hidden=false; $('#vApp').hidden=true; $('#lErr').textContent='Tu usuario aún no está activo. Pide al administrador que lo active.'; await sb.auth.signOut(); return; }
+  if(!p || !p.activo){ $('#vLogin').hidden=false; $('#vApp').hidden=true; $('#lErr').textContent='Tu usuario aún no está activo. Pide al administrador que lo active.'; await sb.auth.signOut({scope:'local'}); return; }
   S.admin = p.rol==='admin';
   $('#vLogin').hidden=true; $('#vApp').hidden=false;
   $('#who').textContent = `${p.nombre||p.usuario} · ${S.admin?'Administrador':'Operador'}${p.cd?' · '+p.cd:''}`;
@@ -316,7 +321,11 @@ let cam = { stream:null, timer:null, det:null, busy:false };
 let SC = null;   // estado del escaneo actual: {imeis:[], serial:'', codes:[], origen}
 
 function toLum(px){ const l=new Uint8ClampedArray(px.length/4); for(let i=0,j=0;i<px.length;i+=4,j++) l[j]=(px[i]*306+px[i+1]*601+px[i+2]*117)>>10; return l; }
-const zx = (() => { if(typeof ZXing==='undefined') return null; const h=new Map(); h.set(ZXing.DecodeHintType.TRY_HARDER,true); const r=new ZXing.MultiFormatReader(); r.setHints(h); return r; })();
+const mkReader = hard => { if(typeof ZXing==='undefined') return null; const r=new ZXing.MultiFormatReader(); const h=new Map();
+  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.DATA_MATRIX]);
+  if(hard) h.set(ZXing.DecodeHintType.TRY_HARDER,true); r.setHints(h); return r; };
+const zxFull = mkReader(true), zxLive = mkReader(false);
+let zx = zxFull;
 function zxDecode(ctx,x,y,w,h){
   if(!zx) return null;
   try{ const d=ctx.getImageData(x,y,w,h); const src=new ZXing.RGBLuminanceSource(toLum(d.data),w,h);
@@ -335,7 +344,8 @@ async function detectIn(source, canvas, full){
   if(!out.size || full){
     const ctx=canvas.getContext('2d',{willReadFrequently:true}); const W=canvas.width,H=canvas.height;
     const crops = full ? [[0,0,W,H],...[0,1,2,3].map(i=>[0,Math.round(i*H/4),W,Math.round(H/4)]),...[0,1,2].map(i=>[0,Math.round(i*H/3),W,Math.round(H/3)])]
-                       : [[0,Math.round(H*.3),W,Math.round(H*.4)],[0,0,W,H]];
+                       : [[0,Math.round(H*.3),W,Math.round(H*.4)]];
+    zx = full ? zxFull : zxLive;
     for(const c of crops){ const t=zxDecode(ctx,...c); if(t) out.add(t); }
   }
   return [...out];
@@ -365,15 +375,18 @@ async function startCam(){
   const v=$('#scVideo'); v.srcObject=cam.stream; $('#scVid').hidden=false; await v.play().catch(()=>{});
   $('#scCam').textContent='Cerrar cámara';
   const cv=document.createElement('canvas');
-  cam.timer=setInterval(async()=>{
-    if(cam.busy || !v.videoWidth) return; cam.busy=true;
-    try{ const k=Math.min(1,1280/v.videoWidth); cv.width=Math.round(v.videoWidth*k); cv.height=Math.round(v.videoHeight*k);
-      cv.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,cv.width,cv.height);
-      (await detectIn(v,cv,false)).forEach(c=>addCode(c,'Escaneo cámara')); }
-    finally{ cam.busy=false; }
-  }, 300);
+  const tick=async()=>{
+    if(!cam.stream) return;
+    if(!document.hidden && v.videoWidth){
+      try{ const k=Math.min(1,800/v.videoWidth); cv.width=Math.round(v.videoWidth*k); cv.height=Math.round(v.videoHeight*k);
+        cv.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,cv.width,cv.height);
+        (await detectIn(v,cv,false)).forEach(c=>addCode(c,'Escaneo cámara')); }catch{}
+    }
+    if(cam.stream) cam.timer=setTimeout(tick,450);   // pausa entre lecturas para no congelar la pantalla
+  };
+  cam.timer=setTimeout(tick,400);
 }
-function stopCam(){ clearInterval(cam.timer); cam.timer=null; cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; const b=$('#scVid'); if(b) b.hidden=true; const c=$('#scCam'); if(c) c.textContent='Abrir cámara'; }
+function stopCam(){ clearTimeout(cam.timer); cam.timer=null; cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; const b=$('#scVid'); if(b) b.hidden=true; const c=$('#scCam'); if(c) c.textContent='Abrir cámara'; }
 function pickPhoto(){ return new Promise(res=>{ const i=$('#camIn'); i.value=''; const on=()=>{ i.removeEventListener('change',on); res(i.files[0]||null); }; i.addEventListener('change',on); i.click(); }); }
 async function photoCanvas(file,max=2200){
   const url=URL.createObjectURL(file);
@@ -471,13 +484,20 @@ function openForm(acc){
     ${scanPanel()}
     <form id="fReg"><div class="lbl" style="margin-bottom:8px">2 · Completa los datos</div><div class="grid2">${campos}</div>
     <div class="err" id="rErr" style="margin-top:10px"></div>
-    <button class="btn primary big" type="submit" id="rBtn" style="margin-top:8px">Guardar</button></form>`;
+    <div class="grid2" style="margin-top:8px"><button class="btn primary big" type="submit" id="rBtn">Guardar</button><button class="btn big" type="button" id="rCancel">Cancelar y volver</button></div></form>`;
   bindScan();
-  $('#rBack').onclick=closeForm;
+  $('#rBack').onclick=()=>closeForm(); $('#rCancel').onclick=()=>closeForm();
+  if(!history.state?.form) history.pushState({form:acc},''); window.scrollTo(0,0);
   $('#rTnov')?.addEventListener('change',()=>{ if(/Pérdida|Hurto/.test(fv('rTnov'))) $('#rNest').value='Perdido'; });
   $('#fReg').addEventListener('submit', ev=>{ ev.preventDefault(); guardar(acc); });
 }
-function closeForm(){ stopCam(); SC=null; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false; }
+function closeForm(fromPop){
+  try{ stopCam(); }catch{}
+  SC=null; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false;
+  if(fromPop!==true && history.state?.form) history.back();
+}
+window.addEventListener('popstate',()=>{ if(!$('#regForm').hidden) closeForm(true); });
+document.addEventListener('keydown',ev=>{ if(ev.key==='Escape' && !$('#regForm').hidden && !$('#modalRoot').innerHTML) closeForm(); });
 async function guardar(acc){
   const err=$('#rErr'); err.textContent='';
   const v=scanValues(), tipo=fv('rTipo');
@@ -501,7 +521,7 @@ async function guardar(acc){
   $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
     <div class="t2" style="margin-top:8px">${esc(TITULOS[acc])} · ${esc(v.imei?'IMEI '+v.imei:'S/N '+v.serial)}</div>
     <div class="grid2" style="margin-top:16px"><button class="btn primary big" id="rOtro">Registrar otro</button><button class="btn big" id="rInicio">Volver al inicio</button></div>`;
-  $('#rOtro').onclick=()=>openForm(acc); $('#rInicio').onclick=closeForm;
+  $('#rOtro').onclick=()=>openForm(acc); $('#rInicio').onclick=()=>closeForm();
   renderSesion(); if(S.admin) loadAll();
 }
 function renderSesion(){
