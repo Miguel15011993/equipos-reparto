@@ -25,12 +25,12 @@ const CONFIG = {
   --navy:#1b2a4a; --navy-fg:#f3f5fa; --gold:#b9851a; --gold-soft:#f6ecd4;
   --ok:#1e8449; --ok-soft:#e1f3e8; --warn:#b86e00; --warn-soft:#fbefd9; --bad:#b83227; --bad-soft:#f8e1de; --info:#2a62c4; --info-soft:#e2ebfa; --off:#6b7486; --off-soft:#eceef2;
   --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --f-body:Barlow,"Segoe UI",Arial,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
-  --r:8px; color-scheme:light;
+  --r:8px; color-scheme:light; --viz-1:#2a78d6;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0c1322; --surface:#141d31; --surface2:#19243c; --fg:#e7ebf3; --muted:#98a3bb; --line:#27334e;
   --navy:#08101f; --navy-fg:#eef1f7; --gold:#e2b24e; --gold-soft:#3a2f17;
-  --ok:#4cc27e; --ok-soft:#14301f; --warn:#f0a43a; --warn-soft:#352812; --bad:#f07466; --bad-soft:#3a1a18; --info:#73a2f2; --info-soft:#17284a; --off:#9aa3b4; --off-soft:#232c3e; color-scheme:dark}}
+  --ok:#4cc27e; --ok-soft:#14301f; --warn:#f0a43a; --warn-soft:#352812; --bad:#f07466; --bad-soft:#3a1a18; --info:#73a2f2; --info-soft:#17284a; --off:#9aa3b4; --off-soft:#232c3e; --viz-1:#3987e5; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -92,6 +92,37 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 .chip{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer}
 .chip.imei{border-color:var(--ok);color:var(--ok)}
 .chip.ser{border-color:var(--info);color:var(--info)}
+.verif{border-radius:var(--r);padding:10px 12px;font-size:14px;background:var(--surface);border:1px solid var(--line)}
+.badline{background:var(--bad-soft);color:var(--bad);border:2px solid var(--bad);border-radius:var(--r);padding:12px 14px}
+.fotos{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumb{position:relative;width:96px;height:96px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;font-size:15px;line-height:1}
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.galeria a{display:block;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.galeria img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.anagrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:14px;margin-top:14px}
+.viz{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vizhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.vizhead h3{font-family:var(--f-display);font-size:19px;margin:0}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart .mark{fill:var(--viz-1)}
+.chart [data-tip]:hover{fill:color-mix(in srgb,var(--fg) 5%,transparent)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .base{stroke:color-mix(in srgb,var(--muted) 60%,transparent);stroke-width:1}
+.chart .ax{fill:var(--muted);font:12px var(--f-body)}
+.chart .lab{fill:var(--fg)}
+.chart .val{fill:var(--fg);font:600 12px var(--f-body);font-variant-numeric:tabular-nums}
+.viztip{position:fixed;z-index:40;pointer-events:none;background:var(--navy);color:var(--navy-fg);padding:6px 10px;border-radius:6px;font-size:13px;max-width:260px}
+.hallazgos ul{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:80ch}
+.tablewrap{overflow-x:auto}
+.tbl{width:100%;min-width:560px;border-collapse:collapse;font-size:14px}
+.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.minibar{display:inline-block;width:40px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--viz-1) var(--w),var(--line) var(--w));margin-right:6px;vertical-align:middle}
+.ejemplo{background:var(--warn-soft);color:var(--warn);border:1px dashed var(--warn);border-radius:var(--r);padding:8px 12px;font-weight:600}
 .okline{background:var(--ok-soft);color:var(--ok);border-radius:var(--r);padding:12px 14px;font-weight:500}
 .warnline{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:12px 14px}
 /* admin */
@@ -180,6 +211,8 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
   <main class="wrap">
     <div class="tabs" id="adminTabs" hidden role="tablist">
       <button class="tab" data-tab="reg" aria-selected="true">Registrar</button>
+      <button class="tab" data-tab="inv" aria-selected="false">Inventario <span class="pill p-Abierta" id="solBadge" hidden></span></button>
+      <button class="tab" data-tab="ana" aria-selected="false">Análisis</button>
       <button class="tab" data-tab="eq" aria-selected="false">Equipos</button>
       <button class="tab" data-tab="nov" aria-selected="false">Novedades</button>
       <button class="tab" data-tab="his" aria-selected="false">Historial</button>
@@ -190,7 +223,8 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
     <section id="pReg">
       <div id="regHome">
         <div class="acciones">
-          <button class="accion" data-acc="alta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v6M9 11h6"/></svg></span><span><b>Registrar equipo nuevo</b><span class="t2">Alta de celular o impresora</span></span></button>
+          <button class="accion" data-acc="inventario" id="invCard"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 2.5v3M16 2.5v3M8 11l2.5 2.5L16 8M8 17h8"/></svg></span><span><b>Inventario del mes</b><span class="t2" id="invSub">Del 1 al 5 de cada mes</span></span></button>
+          <button class="accion" data-acc="alta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v6M9 11h6"/></svg></span><span><b>Registrar equipo nuevo</b><span class="t2" id="altaSub">Alta de celular o impresora</span></span></button>
           <button class="accion" data-acc="asignacion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 4v16"/></svg></span><span><b>Entregar equipo</b><span class="t2">Asignar a conductor o auxiliar</span></span></button>
           <button class="accion" data-acc="devolucion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12H8M12 6l-6 6 6 6"/><path d="M4 4v16"/></svg></span><span><b>Recibir equipo</b><span class="t2">Devolución al cierre</span></span></button>
           <button class="accion" data-acc="novedad"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></span><span><b>Reportar novedad</b><span class="t2">Daño, pérdida o falla</span></span></button>
@@ -218,6 +252,30 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
       <div class="toolbar"><input type="search" id="qh" placeholder="Buscar en historial (equipo, persona, usuario)"></div>
       <div class="list" id="listHis"></div>
     </section>
+    <section id="pInv" hidden>
+      <div class="toolbar">
+        <label class="lbl" for="invPer">Mes</label><input type="month" id="invPer" style="width:auto">
+        <span class="t2" id="invVentana"></span>
+        <button class="btn" id="invExport" type="button">Exportar este mes</button>
+      </div>
+      <div class="card" id="solBox" style="margin-bottom:16px"></div>
+      <div class="kpis" id="invKpis"></div>
+      <div class="toolbar">
+        <select id="invVer" style="width:auto"><option value="faltan">Faltan por inventariar</option><option value="hechos">Inventariados</option><option value="resueltas">Solicitudes resueltas</option></select>
+        <input type="search" id="invQ" placeholder="Buscar serial, IMEI, persona o ruta">
+      </div>
+      <div class="list" id="invList"></div>
+    </section>
+    <section id="pAna" hidden>
+      <div class="toolbar">
+        <label class="lbl" for="anaPer">Periodo</label>
+        <select id="anaPer" style="width:auto"><option value="3">Últimos 3 meses</option><option value="6" selected>Últimos 6 meses</option><option value="12">Últimos 12 meses</option><option value="todo">Todo</option></select>
+        <select id="anaTipo" style="width:auto"><option value="">Celulares e impresoras</option><option>Celular</option><option>Impresora</option></select>
+        <button class="btn" id="anaEjemplo" type="button">Ver con datos de ejemplo</button>
+      </div>
+      <div class="ejemplo" id="anaAviso" hidden>DATOS DE EJEMPLO: no son reales. Sirven para ver cómo se lee el análisis.</div>
+      <div id="anaBody" style="margin-top:12px"></div>
+    </section>
     <section id="pUsr" hidden>
       <div class="card" style="margin-top:16px">
         <h2>Crear usuario</h2><div class="t2" style="margin-bottom:12px">Los operadores solo pueden registrar; no ven el inventario ni el historial.</div>
@@ -238,6 +296,8 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 </div>
 
 <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="evIn" accept="image/*" capture="environment" hidden>
+<div class="viztip" id="vizTip" hidden></div>
 <div id="modalRoot"></div><div id="toastRoot"></div>
 
 <script>
@@ -260,7 +320,10 @@ const pill = e => `<span class="pill ${pillCls(e)}">${esc(e)}</span>`;
 
 if(!/^https:\/\//.test(CONFIG.SUPABASE_URL) || CONFIG.SUPABASE_KEY.startsWith('PEGA')){ $('#vConfig').hidden=false; return; }
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[] };
+const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[], sol:[], cnt:[], ventana:null };
+const mesActual = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+const mesPrev = per => { const [y,m]=per.split('-').map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+const nombreMes = per => { const [y,m]=per.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'}); };
 const emailDe = u => u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@${CONFIG.DOMINIO}`;
 
 // ===================== AUTH =====================
@@ -311,7 +374,18 @@ async function boot(){
   $('#vLogin').hidden=true; $('#vApp').hidden=false;
   $('#who').textContent = `${p.nombre||p.usuario} · ${S.admin?'Administrador':'Operador'}${p.cd?' · '+p.cd:''}`;
   ['#adminTabs','#cdSeg','#btnExport'].forEach(s=>$(s).hidden=!S.admin);
+  try{ const {data}=await sb.rpc('ventana_inventario'); S.ventana=data; }catch{}
+  pintarVentana();
   if(S.admin) loadAll();
+}
+function pintarVentana(){
+  const v=S.ventana, sub=$('#invSub'), card=$('#invCard');
+  if(v){
+    if(v.abierta) sub.textContent=`Abierto: hoy es ${v.dia} de ${nombreMes(v.periodo).split(' ')[0]} (cierra el día 5)`;
+    else sub.textContent= S.admin ? `Cerrado para operadores (abre el 1 de cada mes). Tú puedes hacerlo hoy.` : 'Cerrado: disponible del 1 al 5 de cada mes';
+    card.style.opacity = (!v.abierta && !S.admin) ? '.55' : '';
+  }
+  $('#altaSub').textContent = S.admin ? 'Alta directa de celular o impresora' : 'Queda pendiente de autorización';
 }
 
 // ===================== ESCANEO =====================
@@ -367,6 +441,63 @@ function renderScan(){
   $('#scChips').querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ const c=SC.codes[+b.dataset.ci]; if(isSerialCand(c)){ SC.serial=c.toUpperCase(); renderScan(); } });
   const st=$('#scState'); const ok = SC.imeis.length||SC.serial;
   st.textContent = ok ? `Leído: ${[SC.imeis[0]&&'IMEI '+SC.imeis[0], SC.imeis[1]&&'IMEI 2 '+SC.imeis[1], SC.serial&&'S/N '+SC.serial].filter(Boolean).join(' · ')}` : '';
+  verificar();
+}
+// ---- Verificación de duplicados al escanear ----
+let ACC=null, VERIF={key:'',res:null}, verifT=null, FOTOS=[];
+function verificar(){
+  clearTimeout(verifT);
+  verifT=setTimeout(async()=>{
+    const box=$('#scVerif'); if(!SC||!box) return;
+    const v=scanValues(); const key=[v.imei,v.imei2,v.serial].join('|');
+    if(!v.imei && !v.serial){ VERIF={key:'',res:null}; box.hidden=true; updBloqueo(); return; }
+    if(key===VERIF.key && VERIF.res) return;
+    VERIF={key,res:null}; box.hidden=false; box.className='verif'; box.textContent='Verificando en el inventario…'; updBloqueo();
+    const {data,error}=await sb.rpc('verificar_equipo',{p_imei:v.imei,p_imei2:v.imei2,p_serial:v.serial});
+    if(VERIF.key!==key || !$('#scVerif')) return;
+    if(error){ box.className='verif warnline'; box.textContent='No se pudo verificar ahora (revisa la señal). Se validará al guardar.'; updBloqueo(); return; }
+    VERIF.res=data; pintarVerif(); updBloqueo();
+  },350);
+}
+function pintarVerif(){
+  const box=$('#scVerif'), d=VERIF.res; if(!box||!d) return;
+  const desc = d.existe ? `${d.tipo} · ${d.modelo||'sin modelo'} · CD ${d.cd} · ${d.estado}` : '';
+  const set=(cls,html,bloq)=>{ box.className='verif '+cls; box.innerHTML=html; VERIF.bloqueo=bloq||''; if(cls==='badline'){ try{ navigator.vibrate?.([250,120,250]); }catch{} } };
+  if(ACC==='alta'){
+    if(d.existe) set('badline',`<b>EQUIPO DUPLICADO</b><br>El ${esc(d.por)} ya está registrado (${esc(desc)}). No se puede registrar de nuevo.`,'Bloqueado: equipo duplicado');
+    else if(d.pendiente) set('badline','<b>SOLICITUD PENDIENTE</b><br>Este equipo ya fue reportado y está esperando la autorización del administrador.','Bloqueado: ya tiene solicitud');
+    else set('okline', S.admin ? 'Equipo nuevo: no está en el inventario. Puedes registrarlo.' : 'Equipo nuevo: al guardar se envía como solicitud y queda registrado cuando el administrador lo autorice.');
+  } else if(ACC==='inventario'){
+    if(d.existe && d.inventariado) set('badline',`<b>YA INVENTARIADO</b><br>Este equipo ya se contó este mes${d.inventariado_ts?' ('+esc(fmtTs(d.inventariado_ts))+')':''}. No se puede contar dos veces.`,'Bloqueado: ya inventariado');
+    else if(d.existe) set('okline',`Equipo del inventario: ${esc(desc)}`);
+    else if(d.pendiente) set('badline','<b>SOLICITUD PENDIENTE</b><br>Este equipo no está en el inventario y ya tiene una solicitud esperando autorización.','Bloqueado: ya tiene solicitud');
+    else set('warnline','<b>ATENCIÓN: este equipo NO estaba en el inventario anterior.</b> Al guardar se envía una solicitud y el administrador debe autorizarlo.');
+  } else {
+    if(d.existe) set('okline',`Equipo encontrado: ${esc(desc)}`);
+    else set('badline','<b>EQUIPO NO REGISTRADO</b><br>Este equipo no está en el inventario. Regístralo primero con "Registrar equipo nuevo"; quedará pendiente de autorización.','Bloqueado: equipo no registrado');
+  }
+}
+function updBloqueo(){
+  const b=$('#rBtn'); if(!b || b.dataset.busy) return;
+  const bl = VERIF.res ? (VERIF.bloqueo||'') : '';
+  b.disabled=!!bl; b.textContent = bl || 'Guardar';
+}
+// ---- Fotos de evidencia ----
+function renderFotos(){
+  const T=$('#evThumbs'); if(!T) return;
+  T.innerHTML = FOTOS.map((f,i)=>`<div class="thumb"><img src="${f.url}" alt="Foto ${i+1}"><button type="button" data-evdel="${i}" aria-label="Quitar foto">×</button></div>`).join('');
+  T.querySelectorAll('[data-evdel]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.evdel; URL.revokeObjectURL(FOTOS[i].url); FOTOS.splice(i,1); renderFotos(); });
+  const add=$('#evAdd'); if(add){ add.hidden = FOTOS.length>=3; add.textContent = FOTOS.length ? 'Agregar otra foto' : 'Tomar foto'; }
+}
+async function agregarFoto(){
+  const i=$('#evIn'); i.value='';
+  const file=await new Promise(res=>{ const on=()=>{ i.removeEventListener('change',on); res(i.files[0]||null); }; i.addEventListener('change',on); i.click(); });
+  if(!file) return;
+  try{
+    const c=await photoCanvas(file,1280);
+    const blob=await new Promise(ok=>c.toBlob(ok,'image/jpeg',0.72));
+    FOTOS.push({blob,url:URL.createObjectURL(blob),path:null}); renderFotos();
+  }catch{ toast('No se pudo leer la foto. Inténtalo de nuevo.'); }
 }
 async function startCam(){
   if(!navigator.mediaDevices?.getUserMedia){ toast('Este navegador no permite usar la cámara. Usa "Foto de etiqueta".'); return; }
@@ -429,6 +560,7 @@ function scanPanel(){
     <div class="vidbox" id="scVid" hidden><video id="scVideo" playsinline muted></video><div class="aim"></div><div class="hint">Centra un código de barras en el recuadro</div></div>
     <div class="chips" id="scChips"></div>
     <div class="t2" id="scState"></div>
+    <div id="scVerif" class="verif" hidden></div>
     <div class="grid2">
       <div class="field"><label for="scImei">IMEI</label><input id="scImei" inputmode="numeric" ${ro}></div>
       <div class="field"><label for="scImei2">IMEI 2</label><input id="scImei2" inputmode="numeric" ${ro}></div>
@@ -441,7 +573,8 @@ function bindScan(){
   $('#scCam').onclick=()=> cam.stream ? stopCam() : startCam();
   $('#scPhoto').onclick=scanPhoto; $('#scScreen').onclick=scanScreen;
   $('#scClear').onclick=()=>{ SC={imeis:[],serial:'',codes:[],origen:''}; renderScan(); $('#scState').textContent=''; };
-  if(S.admin){ ['scImei','scImei2','scSerial'].forEach(id=>$('#'+id).addEventListener('input',()=>{ SC.manual=true; })); }
+  VERIF={key:'',res:null};
+  if(S.admin){ ['scImei','scImei2','scSerial'].forEach(id=>$('#'+id).addEventListener('input',()=>{ SC.manual=true; verificar(); })); }
   renderScan();
 }
 function scanValues(){
@@ -450,12 +583,14 @@ function scanValues(){
 }
 
 // ===================== FORMULARIOS DE REGISTRO =====================
-const TITULOS={alta:'Registrar equipo nuevo',asignacion:'Entregar equipo',devolucion:'Recibir equipo',novedad:'Reportar novedad'};
+const TITULOS={inventario:'Inventario del mes',alta:'Registrar equipo nuevo',asignacion:'Entregar equipo',devolucion:'Recibir equipo',novedad:'Reportar novedad'};
 function tipoCd(){ const cd=S.perfil?.cd||'Villavicencio';
   return `<div class="field"><label for="rTipo">Tipo</label><select id="rTipo">${opt(['Celular','Impresora'],'Celular')}</select></div>
           <div class="field"><label for="rCd">CD</label><select id="rCd">${opt(['Villavicencio','Yopal'],cd)}</select></div>`; }
 const accChecks = () => `<div class="field full"><span class="lbl">Accesorios</span><div class="checks">${ACCES.map((a,i)=>`<label><input type="checkbox" id="rAcc${i}" value="${esc(a)}"> ${esc(a)}</label>`).join('')}</div></div>`;
 function openForm(acc){
+  if(acc==='inventario' && !S.admin && S.ventana && !S.ventana.abierta){ toast('El inventario del mes solo se hace del 1 al 5 de cada mes.'); return; }
+  ACC=acc; VERIF={key:'',res:null}; FOTOS.forEach(f=>URL.revokeObjectURL(f.url)); FOTOS=[];
   $('#regHome').hidden=true; const F=$('#regForm'); F.hidden=false;
   let campos='';
   if(acc==='alta') campos = `${tipoCd()}
@@ -464,6 +599,12 @@ function openForm(acc){
     <div class="field"><label for="rLinea">Línea / SIM</label><input id="rLinea" inputmode="tel"></div>
     <div class="field"><label for="rOper">Operador</label><select id="rOper">${opt(['','Claro','Movistar','Tigo','WOM','Otro'],'')}</select></div>
     ${accChecks()}<div class="field full"><label for="rObs">Observaciones</label><textarea id="rObs"></textarea></div>`;
+  if(acc==='inventario') campos = `
+    <div class="field"><label for="rCond">Condición física</label><select id="rCond">${opt(['Bueno','Regular','Malo'],'Bueno')}</select></div>
+    <div class="field"><label for="rTiene">¿Quién lo tiene?</label><input id="rTiene" placeholder="Nombre de quien lo usa"></div>
+    <div class="field"><label for="rRuta">Ruta</label><input id="rRuta" placeholder="Ej. 101"></div>
+    ${tipoCd()}
+    <div class="field full"><label for="rObs">Observaciones</label><textarea id="rObs" placeholder="Ej. Pantalla rayada, sin funda"></textarea></div>`;
   if(acc==='asignacion') campos = `
     <div class="field"><label for="rPers">Se entrega a *</label><input id="rPers" placeholder="Nombre completo"></div>
     <div class="field"><label for="rCargo">Cargo</label><select id="rCargo">${opt(CARGOS,'Conductor')}</select></div>
@@ -483,9 +624,11 @@ function openForm(acc){
   F.innerHTML = `<button class="back" id="rBack">← Volver</button><h2 style="margin-top:8px">${TITULOS[acc]}</h2>
     ${scanPanel()}
     <form id="fReg"><div class="lbl" style="margin-bottom:8px">2 · Completa los datos</div><div class="grid2">${campos}</div>
+    <div class="fotos"><div><div class="lbl">3 · Foto de evidencia (obligatoria)</div><div class="t2">Cómo está el equipo en este momento: frente, pantalla y golpes si los hay. Mínimo 1 foto, máximo 3.</div></div>
+      <div class="thumbs" id="evThumbs"></div><div><button type="button" class="btn" id="evAdd">Tomar foto</button></div></div>
     <div class="err" id="rErr" style="margin-top:10px"></div>
     <div class="grid2" style="margin-top:8px"><button class="btn primary big" type="submit" id="rBtn">Guardar</button><button class="btn big" type="button" id="rCancel">Cancelar y volver</button></div></form>`;
-  bindScan();
+  bindScan(); renderFotos(); $('#evAdd').onclick=agregarFoto;
   $('#rBack').onclick=()=>closeForm(); $('#rCancel').onclick=()=>closeForm();
   if(!history.state?.form) history.pushState({form:acc},''); window.scrollTo(0,0);
   $('#rTnov')?.addEventListener('change',()=>{ if(/Pérdida|Hurto/.test(fv('rTnov'))) $('#rNest').value='Perdido'; });
@@ -493,7 +636,7 @@ function openForm(acc){
 }
 function closeForm(fromPop){
   try{ stopCam(); }catch{}
-  SC=null; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false;
+  SC=null; ACC=null; FOTOS.forEach(f=>URL.revokeObjectURL(f.url)); FOTOS=[]; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false;
   if(fromPop!==true && history.state?.form) history.back();
 }
 window.addEventListener('popstate',()=>{ if(!$('#regForm').hidden) closeForm(true); });
@@ -505,20 +648,41 @@ async function guardar(acc){
   if(acc==='alta' && tipo==='Celular' && !S.admin && !isImei(v.imei)){ err.textContent='Para registrar un celular necesitas escanear un IMEI válido (caja, sticker o pantalla *#06#).'; return; }
   if(acc==='alta' && tipo==='Impresora' && !v.serial){ err.textContent='Para una impresora escanea el código de barras del serial.'; return; }
   if(S.admin && v.imei && !isImei(v.imei)){ err.textContent='El IMEI no es válido (15 dígitos con dígito verificador).'; return; }
+  if(VERIF.res && VERIF.bloqueo){ err.textContent=VERIF.bloqueo.replace('Bloqueado: ','No se puede guardar: ')+'.'; $('#scVerif')?.scrollIntoView({block:'center'}); return; }
+  if(!FOTOS.length){ err.textContent='La foto de evidencia es obligatoria. Toma al menos una foto del equipo.'; $('#evAdd')?.scrollIntoView({block:'center'}); return; }
   const p={ accion:acc, tipo, cd:fv('rCd'), imei:v.imei, imei2:v.imei2, serial:v.serial, origen:v.origen };
   const acc_ = ACCES.filter((a,i)=>$('#rAcc'+i)?.checked);
   if(acc==='alta') Object.assign(p,{marca:fv('rMarca'),modelo:fv('rModelo'),linea:fv('rLinea'),operador_tel:fv('rOper'),accesorios:acc_,obs:fv('rObs')});
   if(acc==='asignacion'){ if(!fv('rPers')){ err.textContent='Indica a quién se entrega el equipo.'; return; }
     Object.assign(p,{asignado_a:fv('rPers'),cargo:fv('rCargo'),ruta:fv('rRuta'),placa:fv('rPlaca').toUpperCase(),fecha:fv('rFecha'),accesorios:acc_}); }
   if(acc==='devolucion') Object.assign(p,{estado:fv('rEst'),obs:fv('rObs')});
+  if(acc==='inventario') Object.assign(p,{condicion:fv('rCond'),tiene:fv('rTiene'),ruta:fv('rRuta'),obs:fv('rObs')});
   if(acc==='novedad') Object.assign(p,{tipo_novedad:fv('rTnov'),fecha:fv('rFecha'),reportado_por:fv('rRep'),nuevo_estado:fv('rNest'),descripcion:fv('rDesc')});
-  const b=$('#rBtn'); b.disabled=true; b.textContent='Guardando…';
+  const b=$('#rBtn'); b.disabled=true; b.dataset.busy='1';
+  const listo=()=>{ delete b.dataset.busy; b.disabled=false; b.textContent='Guardar'; updBloqueo(); };
+  // subir fotos de evidencia
+  for(const [i,f] of FOTOS.entries()){
+    if(f.path) continue;
+    b.textContent=`Subiendo foto ${i+1} de ${FOTOS.length}…`;
+    const path=`${S.me.id}/${today()}/${Date.now()}-${i}.jpg`;
+    const {error:ue}=await sb.storage.from('evidencias').upload(path,f.blob,{contentType:'image/jpeg',upsert:false});
+    if(ue){ listo(); err.textContent='No se pudo subir la foto '+(i+1)+'. Revisa la señal e intenta de nuevo. ('+ue.message+')'; return; }
+    f.path=path;
+  }
+  p.fotos=FOTOS.map(f=>f.path);
+  b.textContent='Guardando…';
   const { data, error } = await sb.rpc('registrar',{ p });
-  b.disabled=false; b.textContent='Guardar';
-  if(error){ err.textContent = error.message || 'No se pudo guardar. Revisa tu conexión.'; return; }
+  listo();
+  if(error){
+    if(/DUPLICADO|YA INVENTARIADO|solicitud pendiente|no está en el inventario/i.test(error.message)){
+      err.innerHTML=''; const box=$('#scVerif');
+      if(box){ box.hidden=false; box.className='verif badline'; box.innerHTML='<b>NO SE PUEDE GUARDAR</b><br>'+esc(error.message); box.scrollIntoView({block:'center'}); }
+      VERIF.res=VERIF.res||{}; VERIF.bloqueo='Bloqueado: revisa el aviso'; updBloqueo(); return; }
+    err.textContent = error.message || 'No se pudo guardar. Revisa tu conexión.'; return; }
   stopCam();
-  S.sesion.unshift({ts:Date.now(),acc,id:v.imei||v.serial,msg:data});
-  $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
+  const nf=p.fotos.length;
+  S.sesion.unshift({ts:Date.now(),acc,id:v.imei||v.serial,msg:data+(nf?` (${nf} foto${nf>1?'s':''})`:'')});
+  $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba|ATENCIÓN|Solicitud/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
     <div class="t2" style="margin-top:8px">${esc(TITULOS[acc])} · ${esc(v.imei?'IMEI '+v.imei:'S/N '+v.serial)}</div>
     <div class="grid2" style="margin-top:16px"><button class="btn primary big" id="rOtro">Registrar otro</button><button class="btn big" id="rInicio">Volver al inicio</button></div>`;
   $('#rOtro').onclick=()=>openForm(acc); $('#rInicio').onclick=()=>closeForm();
@@ -529,6 +693,142 @@ function renderSesion(){
   $('#sesionList').innerHTML=S.sesion.slice(0,20).map(s=>`<div class="item"><span><b>${esc(TITULOS[s.acc])}</b> · <span class="mono">${esc(s.id)}</span><div class="t2">${esc(s.msg)}</div></span><span class="t2">${new Date(s.ts).toLocaleTimeString('es-CO',{timeStyle:'short'})}</span></div>`).join('');
 }
 document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>openForm(b.dataset.acc));
+
+// ===================== ANÁLISIS DE NOVEDADES =====================
+const ANA={ejemplo:false, vista:'persona'};
+const diasEntre=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
+const fmtN=n=>Number(n||0).toLocaleString('es-CO');
+const fmtCOP=n=>'$'+Math.round(n||0).toLocaleString('es-CO');
+const mesKey=d=>String(d).slice(0,7);
+function mesesDesde(n){ const out=[]; const d=new Date(); d.setDate(1); for(let i=n-1;i>=0;i--){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); out.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`); } return out; }
+const mesCorto=k=>{ const [y,m]=k.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('es-CO',{month:'short'}).replace('.','')+" '"+String(y).slice(2); };
+
+function datosEjemplo(){
+  const modelos=[['Blackview','BV8100'],['Samsung','Galaxy A15'],['Motorola','G24'],['Zebra','ZQ220']];
+  const personas=['Pedro Rojas','Ana Gómez','Luis Pérez','Carlos Díaz','Marta Ruiz','José León'];
+  const tipos=['Pantalla rota','Pantalla rota','Pantalla rota','Falla de batería','Falla de batería','No enciende','Falla de impresión','Daño por agua','Pérdida','Hurto','Falla de software / app'];
+  let seed=7; const rnd=()=>{ seed=(seed*9301+49297)%233280; return seed/233280; }; const pick=a=>a[Math.floor(rnd()*a.length)];
+  const eq=[]; for(let i=0;i<40;i++){ const [ma,mo]=modelos[i<14?0:i<26?1:i<34?2:3]; eq.push({id:'x'+i,tipo:mo==='ZQ220'?'Impresora':'Celular',cd:i%3?'Yopal':'Villavicencio',marca:ma,modelo:mo,serial:'EJ'+(1000+i),imei:mo==='ZQ220'?'':'35'+String(1e12+i*7919).slice(0,13),estado:'Asignado',asignado_a:personas[i%6],ruta:String(100+(i%8))}); }
+  const nov=[]; const meses=mesesDesde(6);
+  meses.forEach((m,mi)=>{ const n=4+Math.floor(rnd()*5)+mi; for(let j=0;j<n;j++){ const e=(rnd()<.35)?eq[Math.floor(rnd()*6)]:pick(eq); const t=e.tipo==='Impresora'&&rnd()<.6?'Falla de impresión':pick(tipos); const dmax=mi===meses.length-1?Math.max(1,new Date().getDate()):27; const f=`${m}-${String(1+Math.floor(rnd()*dmax)).padStart(2,'0')}`; const cerrada=mi<5||rnd()<.4;
+    const fc=cerrada?new Date(new Date(f).getTime()+(2+Math.floor(rnd()*18))*86400000).toISOString().slice(0,10):''; nov.push({id:'n'+nov.length,equipo_id:e.id,cd:e.cd,serial:e.serial,imei:e.imei,equipo_tipo:e.tipo,asignado_a:e.asignado_a,ruta:e.ruta,tipo_novedad:t,fecha:f,estado:cerrada?'Cerrada':(rnd()<.5?'Abierta':'En proceso'),fecha_cierre:fc,costo:cerrada&&/Pantalla|batería|agua/.test(t)?Math.round((80+rnd()*220))*1000:0}); } });
+  return {eq,nov};
+}
+
+function renderAna(){
+  const box=$('#anaBody'); if(!box) return;
+  const src = ANA.ejemplo ? datosEjemplo() : {eq:S.eq, nov:S.nov};
+  $('#anaEjemplo').textContent = ANA.ejemplo ? 'Volver a mis datos' : 'Ver con datos de ejemplo';
+  $('#anaAviso').hidden = !ANA.ejemplo;
+  const per=fv('anaPer'), ft=fv('anaTipo');
+  const meses = per==='todo' ? null : mesesDesde(+per);
+  const desde = meses ? meses[0]+'-01' : '0000';
+  const eqs = src.eq.filter(byCd).filter(e=>!ft||e.tipo===ft);
+  const nov = src.nov.filter(byCd).filter(n=>!ft||n.equipo_tipo===ft).filter(n=>String(n.fecha)>=desde);
+  if(!nov.length){
+    box.innerHTML=`<div class="card empty" style="text-align:left"><h2>Aún no hay novedades ${S.cd?'en '+esc(S.cd)+' ':''}en este periodo</h2>
+      <p class="t2" style="max-width:62ch">Cuando los operadores reporten daños, pérdidas o fallas desde <b>Reportar novedad</b>, aquí verás: cuántas novedades hay cada mes, qué tipo de daño es más frecuente, qué personas y rutas concentran más novedades, qué modelo falla más, qué equipos reinciden y cuánto cuesta repararlos.</p>
+      <p class="t2">Usa <b>Ver con datos de ejemplo</b> para ver cómo se ve el análisis con información.</p></div>`;
+    return;
+  }
+  // ---- cálculos ----
+  const abiertas=nov.filter(n=>n.estado!=='Cerrada');
+  const cerradas=nov.filter(n=>n.estado==='Cerrada'&&n.fecha_cierre);
+  const tCierre=cerradas.length?cerradas.reduce((a,n)=>a+Math.max(0,diasEntre(n.fecha,n.fecha_cierre)),0)/cerradas.length:null;
+  const costo=nov.reduce((a,n)=>a+Number(n.costo||0),0);
+  const eqConNov=new Set(nov.map(n=>n.equipo_id)).size;
+  const tasa=eqs.length?eqConNov*100/eqs.length:0;
+  const perdidas=nov.filter(n=>/Pérdida|Hurto/.test(n.tipo_novedad)).length;
+  const viejas=abiertas.filter(n=>diasEntre(n.fecha,today())>15);
+  const cnt=(arr,key)=>{ const m=new Map(); arr.forEach(x=>{ const k=key(x); m.set(k,(m.get(k)||0)+1); }); return [...m.entries()].sort((a,b)=>b[1]-a[1]); };
+  const porTipo=cnt(nov,n=>n.tipo_novedad||'Otro');
+  const mesesEje = meses || [...new Set(nov.map(n=>mesKey(n.fecha)))].sort();
+  const porMes = mesesEje.map(m=>[m, nov.filter(n=>mesKey(n.fecha)===m).length]);
+  const porPersona=cnt(nov,n=>n.asignado_a||'Sin asignar');
+  const porRuta=cnt(nov,n=>n.ruta?'Ruta '+n.ruta:'Sin ruta');
+  const eqById=new Map(src.eq.map(e=>[e.id,e]));
+  const modelo=e=>e?([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo'):'Equipo eliminado';
+  const mods=new Map(); eqs.forEach(e=>{ const k=modelo(e); const o=mods.get(k)||{k,eq:0,nov:0,costo:0}; o.eq++; mods.set(k,o); });
+  nov.forEach(n=>{ const k=modelo(eqById.get(n.equipo_id)); const o=mods.get(k)||{k,eq:0,nov:0,costo:0}; o.nov++; o.costo+=Number(n.costo||0); mods.set(k,o); });
+  const porModelo=[...mods.values()].filter(o=>o.nov).map(o=>({...o,tasa:o.eq?o.nov/o.eq:o.nov})).sort((a,b)=>b.tasa-a.tasa);
+  const reinc=cnt(nov,n=>n.equipo_id).filter(([,c])=>c>=2).map(([id,c])=>{ const ns=nov.filter(n=>n.equipo_id===id).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))); const e=eqById.get(id)||{}; return {e,c,ult:ns[0],tipos:[...new Set(ns.map(n=>n.tipo_novedad))].join(', '),costo:ns.reduce((a,n)=>a+Number(n.costo||0),0)}; });
+
+  // ---- hallazgos ----
+  const H=[];
+  const pct=(a,b)=>b?Math.round(a*100/b):0;
+  if(porTipo[0]) H.push(`<b>${esc(porTipo[0][0])}</b> es la novedad más frecuente: ${porTipo[0][1]} de ${nov.length} (${pct(porTipo[0][1],nov.length)}%).`);
+  if(porMes.length>=2){ const u=porMes[porMes.length-1][1], a=porMes[porMes.length-2][1]; if(a||u) H.push(u>a?`Las novedades <b>subieron</b> de ${a} a ${u} entre ${mesCorto(porMes[porMes.length-2][0])} y ${mesCorto(porMes[porMes.length-1][0])}.`:u<a?`Las novedades <b>bajaron</b> de ${a} a ${u} entre ${mesCorto(porMes[porMes.length-2][0])} y ${mesCorto(porMes[porMes.length-1][0])}.`:`Las novedades se mantuvieron en ${u} entre los dos últimos meses.`); }
+  const conPersona=porPersona.filter(([k])=>k!=='Sin asignar');
+  if(conPersona.length>=3){ const top=conPersona.slice(0,2); const s=top.reduce((a,[,c])=>a+c,0); if(pct(s,nov.length)>=30) H.push(`<b>${esc(top.map(t=>t[0]).join(' y '))}</b> concentran el ${pct(s,nov.length)}% de las novedades. Vale la pena revisar cómo usan y guardan los equipos.`); }
+  if(reinc.length) H.push(`<b>${reinc.length} equipo${reinc.length>1?'s':''}</b> ${reinc.length>1?'tienen':'tiene'} 2 o más novedades en el periodo (reincidentes). Evalúa si conviene reponerlos.`);
+  if(porModelo.length>=2 && porModelo[0].eq>=2) H.push(`El modelo <b>${esc(porModelo[0].k)}</b> tiene la mayor tasa: ${porModelo[0].tasa.toFixed(1)} novedades por equipo.`);
+  if(perdidas) H.push(`Hay <b>${perdidas} pérdida${perdidas>1?'s':''} o hurto${perdidas>1?'s':''}</b> en el periodo.`);
+  if(viejas.length) H.push(`<b>${viejas.length} novedad${viejas.length>1?'es':''} abierta${viejas.length>1?'s':''} hace más de 15 días</b>. Hacer seguimiento.`);
+  if(costo) H.push(`El costo de reparaciones registrado es <b>${fmtCOP(costo)}</b>${cerradas.length?`, en promedio ${fmtCOP(costo/Math.max(1,cerradas.filter(n=>n.costo>0).length))} por reparación con costo`:''}.`);
+
+  const tile=(l,v,k,sub)=>`<div class="kpi ${k||''}"><div class="n">${v}</div><div class="l">${l}</div>${sub?`<div class="t2" style="margin-top:4px">${sub}</div>`:''}</div>`;
+  box.innerHTML=`
+    <div class="card hallazgos"><h2 style="font-size:22px">Qué nos dicen los datos</h2><ul>${H.map(h=>`<li>${h}</li>`).join('')}</ul></div>
+    <div class="kpis">
+      ${tile('Novedades',fmtN(nov.length))}
+      ${tile('Abiertas',abiertas.length,abiertas.length?'alert':'',viejas.length?`${viejas.length} con más de 15 días`:'')}
+      ${tile('Días promedio de cierre',tCierre==null?'—':tCierre.toFixed(1),'',cerradas.length?`${cerradas.length} cerradas`:'')}
+      ${tile('Costo de reparación',fmtCOP(costo))}
+      ${tile('Equipos con novedad',Math.round(tasa)+'%','',`${eqConNov} de ${eqs.length} equipos`)}
+      ${tile('Pérdidas y hurtos',perdidas,perdidas?'alert':'')}
+    </div>
+    <div class="anagrid">
+      <div class="card viz"><div class="vizhead"><h3>Novedades por mes</h3><button class="btn sm" data-tabla="t1">Ver tabla</button></div><div id="c1"></div>${tabla('t1',['Mes','Novedades'],porMes.map(([m,v])=>[mesCorto(m),v]))}</div>
+      <div class="card viz"><div class="vizhead"><h3>Tipo de novedad</h3><button class="btn sm" data-tabla="t2">Ver tabla</button></div><div id="c2"></div>${tabla('t2',['Tipo','Novedades','%'],porTipo.map(([k,v])=>[k,v,pct(v,nov.length)+'%']))}</div>
+      <div class="card viz"><div class="vizhead"><h3>Quién concentra las novedades</h3><select id="anaVista" style="width:auto"><option value="persona" ${ANA.vista==='persona'?'selected':''}>Por persona</option><option value="ruta" ${ANA.vista==='ruta'?'selected':''}>Por ruta</option></select></div><div id="c3"></div><div class="t2">Top 8. Persona y ruta asignadas al equipo cuando se reportó la novedad.</div></div>
+      <div class="card viz"><div class="vizhead"><h3>Qué modelo falla más</h3></div>
+        <div class="tablewrap"><table class="tbl"><thead><tr><th>Modelo</th><th class="num">Equipos</th><th class="num">Novedades</th><th class="num">Por equipo</th><th class="num">Costo</th></tr></thead>
+        <tbody>${porModelo.slice(0,8).map(o=>`<tr><td>${esc(o.k)}</td><td class="num">${o.eq}</td><td class="num">${o.nov}</td><td class="num"><span class="minibar" style="--w:${Math.min(100,o.tasa/Math.max(...porModelo.map(x=>x.tasa))*100)}%"></span>${o.tasa.toFixed(1)}</td><td class="num">${o.costo?fmtCOP(o.costo):'—'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="t2">"Por equipo" = novedades ÷ equipos de ese modelo. Compara modelos con distinta cantidad de equipos.</div></div>
+    </div>
+    <div class="card viz" style="margin-top:14px"><div class="vizhead"><h3>Equipos reincidentes (2 o más novedades)</h3></div>
+      ${reinc.length?`<div class="tablewrap"><table class="tbl"><thead><tr><th>Equipo</th><th>Identificación</th><th>Lo tiene</th><th class="num">Novedades</th><th>Tipos</th><th>Última</th><th class="num">Costo</th></tr></thead>
+      <tbody>${reinc.map(r=>`<tr><td><span class="cdtag">${esc(r.e.cd||'')}</span> ${esc(modelo(r.e))}</td><td class="mono">${esc(r.e.imei||r.e.serial||'—')}</td><td>${esc(r.e.asignado_a||'—')}${r.e.ruta?' · Ruta '+esc(r.e.ruta):''}</td><td class="num"><b>${r.c}</b></td><td>${esc(r.tipos)}</td><td>${fmtD(r.ult?.fecha)}</td><td class="num">${r.costo?fmtCOP(r.costo):'—'}</td></tr>`).join('')}</tbody></table></div>`
+      :'<div class="t2">Ningún equipo tiene más de una novedad en este periodo.</div>'}
+    </div>`;
+  barrasV($('#c1'), porMes.map(([m,v])=>({label:mesCorto(m),value:v,tip:`${mesCorto(m)}: ${v} novedad${v===1?'':'es'}`})));
+  barrasH($('#c2'), porTipo.slice(0,8).map(([k,v])=>({label:k,value:v,tip:`${k}: ${v} (${pct(v,nov.length)}%)`})));
+  const quien=(ANA.vista==='ruta'?porRuta:porPersona).slice(0,8);
+  barrasH($('#c3'), quien.map(([k,v])=>({label:k,value:v,tip:`${k}: ${v} novedad${v===1?'':'es'}`})));
+  $('#anaVista').onchange=e=>{ ANA.vista=e.target.value; renderAna(); };
+  box.querySelectorAll('[data-tabla]').forEach(b=>b.onclick=()=>{ const t=$('#'+b.dataset.tabla); t.hidden=!t.hidden; b.textContent=t.hidden?'Ver tabla':'Ocultar tabla'; });
+}
+function tabla(id,cols,rows){ return `<div class="tablewrap" id="${id}" hidden><table class="tbl"><thead><tr>${cols.map((c,i)=>`<th class="${i?'num':''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${i?'num':''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
+
+// ---- gráficos SVG (una serie, un color, eje en cero, tooltip al pasar) ----
+function niceMax(v){ if(v<=4) return 4; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=2?2:n<=5?5:10)*p; }
+function tipShow(ev,txt){ const t=$('#vizTip'); t.textContent=txt; t.hidden=false; const x=Math.min(ev.clientX+12, innerWidth-t.offsetWidth-8); t.style.left=x+'px'; t.style.top=(ev.clientY-t.offsetHeight-10)+'px'; }
+function tipHide(){ $('#vizTip').hidden=true; }
+function bindTips(svg){ svg.querySelectorAll('[data-tip]').forEach(r=>{ r.addEventListener('mousemove',ev=>tipShow(ev,r.dataset.tip)); r.addEventListener('mouseleave',tipHide); r.addEventListener('click',ev=>tipShow(ev,r.dataset.tip)); }); }
+function barrasV(el,items){
+  const W=Math.max(300,el.clientWidth||560),H=230,L=34,R=8,T=18,B=30; const max=niceMax(Math.max(1,...items.map(i=>i.value))); const iw=W-L-R, ih=H-T-B;
+  const bw=Math.min(44, iw/items.length*0.62), step=iw/items.length; const y=v=>T+ih-(v/max)*ih;
+  const ticks=[0,max/2,max]; const imax=items.reduce((a,b,i)=>b.value>items[a].value?i:a,0);
+  let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" class="grid"/><text x="${L-6}" y="${y(t)+4}" text-anchor="end" class="ax">${fmtN(t)}</text>`).join('');
+  g+=items.map((it,i)=>{ const x=L+step*i+(step-bw)/2, h=Math.max(0,(it.value/max)*ih), yy=T+ih-h;
+    const bar = h>0 ? `<path d="M${x},${T+ih} V${yy+Math.min(4,h)} Q${x},${yy} ${x+Math.min(4,bw/2)},${yy} H${x+bw-Math.min(4,bw/2)} Q${x+bw},${yy} ${x+bw},${yy+Math.min(4,h)} V${T+ih} Z" class="mark"/>` : '';
+    const lbl = (i===imax||i===items.length-1)&&it.value ? `<text x="${x+bw/2}" y="${yy-6}" text-anchor="middle" class="val">${fmtN(it.value)}</text>` : '';
+    return `${bar}${lbl}<text x="${x+bw/2}" y="${H-10}" text-anchor="middle" class="ax">${esc(it.label)}</text><rect x="${L+step*i}" y="${T}" width="${step}" height="${ih}" fill="transparent" data-tip="${esc(it.tip)}"/>`; }).join('');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Gráfico de columnas">${g}<line x1="${L}" x2="${W-R}" y1="${T+ih}" y2="${T+ih}" class="base"/></svg>`;
+  bindTips(el.querySelector('svg'));
+}
+function barrasH(el,items){
+  if(!items.length){ el.innerHTML='<div class="t2">Sin datos.</div>'; return; }
+  const W=Math.max(300,el.clientWidth||560), rowH=30, L=Math.min(170,Math.round(W*0.4)), R=44, T=6; const H=T+items.length*rowH+4; const max=Math.max(1,...items.map(i=>i.value)); const iw=W-L-R;
+  const g=items.map((it,i)=>{ const yy=T+i*rowH, bh=16, w=Math.max(2,(it.value/max)*iw), y0=yy+(rowH-bh)/2; const r=Math.min(4,w/2);
+    const maxc=Math.floor((L-10)/6.6); const lab=it.label.length>maxc?it.label.slice(0,maxc-1)+'…':it.label;
+    return `<text x="${L-8}" y="${y0+bh/2+4}" text-anchor="end" class="ax lab">${esc(lab)}</text>
+      <path d="M${L},${y0} H${L+w-r} Q${L+w},${y0} ${L+w},${y0+r} V${y0+bh-r} Q${L+w},${y0+bh} ${L+w-r},${y0+bh} H${L} Z" class="mark"/>
+      <text x="${L+w+6}" y="${y0+bh/2+4}" class="val">${fmtN(it.value)}</text>
+      <rect x="0" y="${yy}" width="${W}" height="${rowH}" fill="transparent" data-tip="${esc(it.tip)}"/>`; }).join('');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Gráfico de barras">${g}<line x1="${L}" x2="${L}" y1="${T}" y2="${H-4}" class="base"/></svg>`;
+  bindTips(el.querySelector('svg'));
+}
 
 // ===================== ADMINISTRADOR =====================
 const byCd = r => !S.cd || r.cd===S.cd;
@@ -541,12 +841,91 @@ async function loadAll(){
   ]);
   if(e.error||n.error||m.error||u.error){ toast('No se pudieron cargar los datos. Revisa tu conexión.'); return; }
   S.eq=e.data; S.nov=n.data; S.mov=m.data; S.usr=u.data; renderAdmin();
+  loadInv();
+}
+async function loadInv(){
+  if(!$('#invPer').value) $('#invPer').value = S.ventana?.periodo || mesActual();
+  const per=$('#invPer').value, prev=mesPrev(per);
+  const [so,co]=await Promise.all([
+    sb.from('solicitudes').select('*, reg:perfiles!solicitudes_registrado_por_fkey(nombre,usuario), res:perfiles!solicitudes_resuelto_por_fkey(nombre,usuario)').order('creado',{ascending:false}).limit(500),
+    sb.from('inventario_conteos').select('*, perfiles(nombre,usuario)').in('periodo',[per,prev]).limit(5000)
+  ]);
+  if(so.error||co.error){ toast('No se pudo cargar el inventario: '+(so.error||co.error).message); return; }
+  S.sol=so.data; S.cnt=co.data; renderInv();
+}
+function renderInv(){
+  const per=$('#invPer').value||mesActual(), prev=mesPrev(per);
+  const pendAll=S.sol.filter(x=>x.estado==='Pendiente');
+  const bdg=$('#solBadge'); bdg.hidden=!pendAll.length; bdg.textContent=pendAll.length?`${pendAll.length} por autorizar`:'';
+  const v=S.ventana; $('#invVentana').textContent = v ? (v.abierta?`Ventana abierta (día ${v.dia} de 5)`:'Ventana cerrada para operadores (abre del 1 al 5)') : '';
+  const activos=S.eq.filter(byCd).filter(e=>!['Dado de baja','Perdido'].includes(e.estado));
+  const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c]));
+  const cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
+  const hechos=activos.filter(e=>cAct.has(e.id)), faltan=activos.filter(e=>!cAct.has(e.id));
+  const faltanPrev=faltan.filter(e=>cPrev.has(e.id)).length;
+  const malos=hechos.filter(e=>cAct.get(e.id).condicion==='Malo').length;
+  const pend=pendAll.filter(byCd);
+  const avance=activos.length?Math.round(hechos.length*100/activos.length):0;
+  $('#invKpis').innerHTML=[['Equipos esperados',activos.length,''],['Inventariados',hechos.length,'ok'],['Faltan',faltan.length,faltan.length?'alert':''],['Avance',avance+'%',avance===100?'ok':''],[`Estaban en ${nombreMes(prev).split(' ')[0]} y faltan`,faltanPrev,faltanPrev?'alert':''],['Condición mala',malos,malos?'warn':''],['Por autorizar',pend.length,pend.length?'warn':'']]
+    .map(([l,n,k])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  // solicitudes pendientes
+  $('#solBox').innerHTML = `<h2 style="font-size:22px">Equipos nuevos por autorizar</h2><div class="t2" style="margin-bottom:10px">Equipos que los operadores reportaron y no estaban en el inventario. Solo entran cuando tú los autorizas.</div>`+
+    (pend.length ? `<div class="list">${pend.map(x=>`<div class="row nrow">
+      <div><div class="mono">${esc(fmtTs(x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
+      <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?' / '+esc(x.imei2):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
+      <div><div class="t1">${x.origen==='Inventario'?'Encontrado en el inventario del mes':'Solicitud de alta'}</div><div class="t2">Reportó: ${esc(x.reg?.nombre||x.reg?.usuario||'—')}${x.payload?.tiene?' · lo tiene '+esc(x.payload.tiene):''}${x.obs?' · '+esc(x.obs):''}</div></div>
+      <div><span class="pill p-proc">Pendiente</span></div>
+      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}<button class="btn sm primary" data-solok="${x.id}">Autorizar</button><button class="btn sm danger" data-solno="${x.id}">Rechazar</button></div></div>`).join('')}</div>`
+    : '<div class="okline">No hay solicitudes pendientes.</div>');
+  // lista
+  const ver=$('#invVer').value, q=fv('invQ').toLowerCase(); const L=$('#invList');
+  const match=t=>!q||t.toLowerCase().includes(q);
+  if(ver==='faltan'){
+    const rows=faltan.filter(e=>match([e.serial,e.imei,e.imei2,e.asignado_a,e.ruta,e.marca,e.modelo].join(' ')));
+    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Asignado a</span><span>Mes anterior</span><span></span></div>`+rows.map(e=>`<div class="row">
+      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div></div>
+      <div><div class="mono">S/N ${esc(e.serial||'—')}</div>${e.imei?`<div class="mono t2">IMEI ${esc(e.imei)}</div>`:''}</div>
+      <div>${e.estado==='Asignado'?`<div class="t1">${esc(e.asignado_a)}</div><div class="t2">${esc([e.cargo,e.ruta&&'Ruta '+e.ruta].filter(Boolean).join(' · '))}</div>`:`<span class="t2">${esc(e.estado)}</span>`}</div>
+      <div>${cPrev.has(e.id)?'<span class="pill p-Abierta">Sí estaba</span>':'<span class="pill p-baja">No contado</span>'}</div>
+      <div class="acts"><button class="btn sm" data-edit="${e.id}">Ver</button></div></div>`).join('')
+      : `<div class="empty">${activos.length?'Todos los equipos están inventariados en '+esc(nombreMes(per))+'.':'No hay equipos.'}</div>`;
+  } else if(ver==='hechos'){
+    const rows=hechos.map(e=>({e,c:cAct.get(e.id)})).filter(({e,c})=>match([e.serial,e.imei,c.tiene,c.ruta,c.obs,e.marca,e.modelo].join(' '))).sort((a,b)=>String(b.c.ts).localeCompare(String(a.c.ts)));
+    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Lo tiene</span><span>Condición</span><span></span></div>`+rows.map(({e,c})=>`<div class="row">
+      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div><div class="t2">${esc(fmtTs(c.ts))} · ${esc(c.perfiles?.nombre||c.perfiles?.usuario||'—')}</div></div>
+      <div><div class="mono">S/N ${esc(e.serial||'—')}</div>${e.imei?`<div class="mono t2">IMEI ${esc(e.imei)}</div>`:''}</div>
+      <div><div class="t1">${esc(c.tiene||'—')}</div><div class="t2">${esc([c.ruta&&'Ruta '+c.ruta,c.obs].filter(Boolean).join(' · '))}</div></div>
+      <div><span class="pill ${c.condicion==='Malo'?'p-Abierta':c.condicion==='Regular'?'p-proc':'p-Disponible'}">${esc(c.condicion)}</span></div>
+      <div class="acts">${c.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos (${c.fotos.length})</button>`:''}</div></div>`).join('')
+      : '<div class="empty">Aún no hay equipos inventariados en este mes.</div>';
+  } else {
+    const rows=S.sol.filter(x=>x.estado!=='Pendiente'&&byCd(x)).filter(x=>match([x.serial,x.imei,x.marca,x.modelo,x.motivo].join(' ')));
+    L.innerHTML = rows.length ? rows.map(x=>`<div class="row nrow">
+      <div><div class="mono">${esc(fmtTs(x.resuelto_ts||x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
+      <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
+      <div><div class="t2">Reportó ${esc(x.reg?.nombre||x.reg?.usuario||'—')} · resolvió ${esc(x.res?.nombre||x.res?.usuario||'—')}</div>${x.motivo?`<div class="t2">${esc(x.motivo)}</div>`:''}</div>
+      <div><span class="pill ${x.estado==='Aprobada'?'p-Disponible':'p-Abierta'}">${esc(x.estado)}</span></div>
+      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}</div></div>`).join('')
+      : '<div class="empty">No hay solicitudes resueltas.</div>';
+  }
+}
+function resolverSol(id, aprobar){
+  const x=S.sol.find(s=>s.id===id); if(!x) return;
+  modal(`<h2>${aprobar?'Autorizar equipo':'Rechazar solicitud'}</h2><div class="t2" style="margin-bottom:12px">${esc(x.tipo)} · ${x.imei?'IMEI '+esc(x.imei):'S/N '+esc(x.serial)} · ${esc(x.cd)}</div>
+    <form id="fSol"><div class="field"><label for="solMot">${aprobar?'Observación (opcional)':'Motivo del rechazo'}</label><textarea id="solMot" placeholder="${aprobar?'Ej. Reposición enviada por el proveedor':'Ej. Equipo no corresponde a la operación'}"></textarea></div>
+    <div class="err" id="solErr"></div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn ${aprobar?'primary':'danger'}" type="submit">${aprobar?'Autorizar y agregar al inventario':'Rechazar'}</button></div></form>`,
+  close=>$('#fSol').addEventListener('submit',async ev=>{ ev.preventDefault();
+    if(!aprobar && !fv('solMot')){ $('#solErr').textContent='Escribe el motivo del rechazo.'; return; }
+    const {data,error}=await sb.rpc('resolver_solicitud',{p_id:id,p_aprobar:aprobar,p_motivo:fv('solMot')});
+    if(error){ $('#solErr').textContent=error.message; return; }
+    close(); toast(data); loadAll(); }));
 }
 function renderAdmin(){
   const eq=S.eq.filter(byCd), nov=S.nov.filter(byCd); const c=f=>eq.filter(f).length; const ab=nov.filter(x=>x.estado!=='Cerrada').length; const rv=c(x=>x.revisar);
   $('#kpis').innerHTML=[['Equipos',eq.length,''],['Celulares',c(x=>x.tipo==='Celular'),''],['Impresoras',c(x=>x.tipo==='Impresora'),''],['Asignados',c(x=>x.estado==='Asignado'),''],['Disponibles',c(x=>x.estado==='Disponible'),'ok'],['En reparación',c(x=>x.estado==='En reparación'),'warn'],['Perdidos',c(x=>x.estado==='Perdido'),c(x=>x.estado==='Perdido')?'alert':''],['Novedades abiertas',ab,ab?'alert':''],['Por revisar',rv,rv?'warn':'']]
     .map(([l,n,k])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   renderEq(eq); renderNov(nov); renderHis(); renderUsr();
+  if(!$('#pAna').hidden) renderAna();
 }
 function renderEq(eq){
   const q=fv('q').toLowerCase(), ft=fv('fTipo'), fe=fv('fEstado');
@@ -570,7 +949,7 @@ function renderNov(nov){
   L.innerHTML=`<div class="row head nrow"><span>Fecha</span><span>Equipo</span><span>Novedad</span><span>Estado</span><span></span></div>`+rows.map(n=>`<div class="row nrow">
     <div><div class="mono">${fmtD(n.fecha)}</div><div class="cdtag">${esc(n.cd)}</div></div>
     <div><div class="t1">${esc(n.equipo_tipo)} · <span class="mono">${esc(n.serial||n.imei)}</span></div><div class="t2">${esc([n.asignado_a,n.ruta&&'Ruta '+n.ruta].filter(Boolean).join(' · ')||'Sin asignar')}</div></div>
-    <div><div class="t1">${esc(n.tipo_novedad)}</div><div class="t2">${esc(n.descripcion)}</div><div class="t2">Reportó: ${esc(n.reportado_por||'—')}</div>${n.estado==='Cerrada'?`<div class="t2"><b>Cierre ${fmtD(n.fecha_cierre)}:</b> ${esc(n.solucion)}${n.costo?' · $'+Number(n.costo).toLocaleString('es-CO'):''}</div>`:''}</div>
+    <div><div class="t1">${esc(n.tipo_novedad)}</div><div class="t2">${esc(n.descripcion)}</div><div class="t2">Reportó: ${esc(n.reportado_por||'—')}</div>${n.fotos?.length?`<button class="btn sm" style="margin-top:4px" data-fotos="${esc(JSON.stringify(n.fotos))}">Ver fotos (${n.fotos.length})</button>`:''}${n.estado==='Cerrada'?`<div class="t2"><b>Cierre ${fmtD(n.fecha_cierre)}:</b> ${esc(n.solucion)}${n.costo?' · $'+Number(n.costo).toLocaleString('es-CO'):''}</div>`:''}</div>
     <div>${pill(n.estado)}</div>
     <div class="acts">${n.estado!=='Cerrada'?`${n.estado==='Abierta'?`<button class="btn sm" data-proc="${n.id}">En proceso</button>`:''}<button class="btn sm" data-cerrar="${n.id}">Cerrar</button>`:''}</div></div>`).join('');
 }
@@ -580,7 +959,7 @@ function renderHis(){
   const L=$('#listHis');
   if(!rows.length){ L.innerHTML='<div class="empty">Sin movimientos.</div>'; return; }
   L.innerHTML=`<div class="row head hrow"><span>Fecha</span><span>Acción</span><span>Equipo</span><span>Detalle</span><span>Registró</span></div>`+rows.map(m=>`<div class="row hrow">
-    <div class="mono">${fmtTs(m.ts)}</div><div class="t1">${esc(m.accion)}</div><div><span class="cdtag">${esc(m.cd)}</span> ${esc(m.equipo_tipo)} <span class="mono">${esc(m.serial||m.imei)}</span></div><div class="t2">${esc(m.detalle)}${m.payload?.origen?' · '+esc(m.payload.origen):''}</div><div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('');
+    <div class="mono">${fmtTs(m.ts)}</div><div class="t1">${esc(m.accion)}</div><div><span class="cdtag">${esc(m.cd)}</span> ${esc(m.equipo_tipo)} <span class="mono">${esc(m.serial||m.imei)}</span></div><div class="t2">${esc(m.detalle)}${m.payload?.origen?' · '+esc(m.payload.origen):''}${m.fotos?.length?`<div><button class="btn sm" style="margin-top:4px" data-fotos="${esc(JSON.stringify(m.fotos))}">Ver fotos (${m.fotos.length})</button></div>`:''}</div><div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('');
 }
 function renderUsr(){
   const L=$('#listUsr');
@@ -599,8 +978,16 @@ function modal(html,onMount){
   r.querySelectorAll('[data-close]').forEach(b=>b.onclick=close); onMount?.(close);
 }
 async function logAdmin(e,accion,detalle){ await sb.from('movimientos').insert({accion,equipo_id:e.id,cd:e.cd,serial:e.serial,imei:e.imei,equipo_tipo:e.tipo,detalle,registrado_por:S.me.id}); }
+async function verFotos(paths, titulo){
+  modal(`<h2>Fotos de evidencia</h2><div class="t2" style="margin-bottom:12px">${esc(titulo)||'Toca una foto para verla en tamaño completo.'}</div><div class="galeria" id="gal"><div class="t2">Cargando fotos…</div></div><div class="mfoot"><button class="btn" data-close>Cerrar</button></div>`);
+  const {data,error}=await sb.storage.from('evidencias').createSignedUrls(paths,3600);
+  const g=$('#gal'); if(!g) return;
+  if(error){ g.innerHTML='<div class="err">No se pudieron cargar las fotos: '+esc(error.message)+'</div>'; return; }
+  g.innerHTML=data.map((d,i)=>d.signedUrl?`<a href="${esc(d.signedUrl)}" target="_blank" rel="noopener"><img src="${esc(d.signedUrl)}" alt="Evidencia ${i+1}" loading="lazy"></a>`:`<div class="t2">Foto ${i+1} no disponible</div>`).join('');
+}
 function editEquipo(e){
-  modal(`<h2>Editar equipo</h2><div class="t2" style="margin-bottom:12px">${esc(e.cd)} · ${esc(e.tipo)} · S/N ${esc(e.serial||'—')}</div>
+  const fotosEq=S.mov.filter(m=>m.equipo_id===e.id&&m.fotos?.length).flatMap(m=>m.fotos);
+  modal(`<h2>Editar equipo</h2><div class="t2" style="margin-bottom:12px">${esc(e.cd)} · ${esc(e.tipo)} · S/N ${esc(e.serial||'—')}${fotosEq.length?` · <button type="button" class="btn sm" data-fotos="${esc(JSON.stringify(fotosEq))}" data-titulo="Todas las fotos de este equipo">Ver fotos (${fotosEq.length})</button>`:''}</div>
   <form id="fE"><div class="grid2">
     <div class="field"><label for="eTipo">Tipo</label><select id="eTipo">${opt(['Celular','Impresora'],e.tipo)}</select></div>
     <div class="field"><label for="eCd">CD</label><select id="eCd">${opt(['Villavicencio','Yopal'],e.cd)}</select></div>
@@ -686,15 +1073,37 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.uact){ const u=S.usr.find(x=>x.id===t.dataset.uact); await sb.from('perfiles').update({activo:!u.activo, rol:u.rol==='pendiente'?'operador':u.rol}).eq('id',u.id); loadAll(); }
   if(t.dataset.urol){ const u=S.usr.find(x=>x.id===t.dataset.urol); await sb.from('perfiles').update({rol:u.rol==='admin'?'operador':'admin'}).eq('id',u.id); loadAll(); }
   if(t.dataset.upass){ const u=S.usr.find(x=>x.id===t.dataset.upass); cambiarClave(u); }
+  if(t.dataset.solok){ resolverSol(t.dataset.solok,true); }
+  if(t.dataset.solno){ resolverSol(t.dataset.solno,false); }
+  if(t.dataset.fotos){ verFotos(JSON.parse(t.dataset.fotos), t.dataset.titulo||''); }
 });
 document.querySelectorAll('#adminTabs .tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('#adminTabs .tab').forEach(x=>x.setAttribute('aria-selected',x===t));
-  const m={reg:'#pReg',eq:'#pEq',nov:'#pNov',his:'#pHis',usr:'#pUsr'}; Object.entries(m).forEach(([k,s])=>$(s).hidden=k!==t.dataset.tab);
+  const m={reg:'#pReg',inv:'#pInv',ana:'#pAna',eq:'#pEq',nov:'#pNov',his:'#pHis',usr:'#pUsr'}; Object.entries(m).forEach(([k,s])=>$(s).hidden=k!==t.dataset.tab);
+  if(t.dataset.tab==='ana') renderAna();
   if(t.dataset.tab!=='reg') stopCam();
 });
-$('#cdSeg').addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(!b) return; S.cd=b.dataset.cd; $('#cdSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAdmin(); });
+$('#cdSeg').addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(!b) return; S.cd=b.dataset.cd; $('#cdSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAdmin(); renderInv(); });
 ['q','fTipo','fEstado','qn','fNov','qh'].forEach(id=>$('#'+id).addEventListener('input',renderAdmin));
 $('#btnReload').onclick=loadAll;
+$('#invPer').addEventListener('change',loadInv);
+['anaPer','anaTipo'].forEach(id=>$('#'+id).addEventListener('change',renderAna));
+$('#anaEjemplo').onclick=()=>{ ANA.ejemplo=!ANA.ejemplo; renderAna(); };
+let anaRT=null, anaW=innerWidth; addEventListener('resize',()=>{ if(innerWidth===anaW) return; anaW=innerWidth; clearTimeout(anaRT); anaRT=setTimeout(()=>{ if(!$('#pAna').hidden) renderAna(); },200); });
+['invVer','invQ'].forEach(id=>$('#'+id).addEventListener('input',renderInv));
+$('#invExport').onclick=()=>{
+  const per=$('#invPer').value||mesActual(), prev=mesPrev(per);
+  const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c])), cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
+  const rows=S.eq.filter(byCd).filter(e=>!['Dado de baja','Perdido'].includes(e.estado)).map(e=>{ const c=cAct.get(e.id);
+    return {CD:e.cd,Tipo:e.tipo,Marca:e.marca,Modelo:e.modelo,Serial:e.serial,IMEI:e.imei,'IMEI 2':e.imei2,'Estado equipo':e.estado,'Asignado a':e.asignado_a,
+      ['Inventario '+per]:c?'Inventariado':'FALTA',Condición:c?.condicion||'','Lo tiene':c?.tiene||'',Ruta:c?.ruta||'',Observaciones:c?.obs||'','Fecha conteo':c?fmtTs(c.ts):'','Registró':c?(c.perfiles?.nombre||c.perfiles?.usuario||''):'',
+      ['Estaba en '+prev]:cPrev.has(e.id)?'Sí':'No','Fotos':c?.fotos?.length||0}; });
+  const sol=S.sol.filter(byCd).map(x=>({Fecha:fmtTs(x.creado),Origen:x.origen,Estado:x.estado,CD:x.cd,Tipo:x.tipo,Marca:x.marca,Modelo:x.modelo,Serial:x.serial,IMEI:x.imei,'Reportó':x.reg?.nombre||x.reg?.usuario||'','Resolvió':x.res?.nombre||x.res?.usuario||'',Motivo:x.motivo}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{'Sin datos':''}]),'Inventario '+per);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sol.length?sol:[{'Sin datos':''}]),'Solicitudes');
+  XLSX.writeFile(wb,`inventario_equipos_${per}_${S.cd||'llanos'}.xlsx`);
+};
 $('#btnExport').onclick=()=>{
   const wb=XLSX.utils.book_new(); const sh=(rows,name)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{'Sin datos':''}]),name);
   sh(S.eq.filter(byCd).map(e=>({Tipo:e.tipo,CD:e.cd,Marca:e.marca,Modelo:e.modelo,Serial:e.serial,IMEI:e.imei,'IMEI 2':e.imei2,'Línea':e.linea,Operador:e.operador_tel,Estado:e.estado,'Asignado a':e.asignado_a,Cargo:e.cargo,Ruta:e.ruta,Placa:e.placa,'Fecha asignación':e.fecha_asignacion||'',Accesorios:(e.accesorios||[]).join(', '),'Origen datos':e.origen_datos,'Por revisar':e.revisar?'Sí':'',Observaciones:e.obs})),'Equipos');
