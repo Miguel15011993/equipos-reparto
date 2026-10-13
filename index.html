@@ -133,6 +133,24 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 .tbl .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .minibar{display:inline-block;width:40px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--viz-1) var(--w),var(--line) var(--w));margin-right:6px;vertical-align:middle}
 .ejemplo{background:var(--warn-soft);color:var(--warn);border:1px dashed var(--warn);border-radius:var(--r);padding:8px 12px;font-weight:600}
+.resumen{display:flex;flex-direction:column;gap:12px}
+.resumen-top{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;align-items:flex-end}
+.resumen .big{font-family:var(--f-display);font-size:30px;line-height:1.1}
+.resumen .big b{font-size:40px}
+.stackbar{display:flex;gap:2px;height:22px;border-radius:6px;overflow:hidden;background:var(--surface2);align-items:center}
+.stackbar button{height:100%;border:0;padding:0;cursor:pointer;min-width:6px}
+.stackbar .seg-contado{background:var(--ok)} .stackbar .seg-pendiente{background:var(--warn)} .stackbar .seg-sinreg{background:var(--bad)}
+.stackbar button:hover{filter:brightness(1.1)}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
+.leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:0}
+.alertas{font-size:14px;color:var(--warn);background:var(--warn-soft);border-radius:var(--r);padding:8px 12px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.fchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--fg)}
+.fchip b{font-variant-numeric:tabular-nums;margin-left:4px}
+.fchip.on{background:var(--navy);color:var(--navy-fg);border-color:var(--navy)}
+.row.irow{grid-template-columns:190px minmax(170px,1.1fr) 130px minmax(220px,2fr) 190px}
+.row.irow .acts{justify-content:flex-end}
+@media (max-width:760px){.row.irow{grid-template-columns:1fr;gap:4px}.row.irow .acts{justify-content:flex-start}}
 .okline{background:var(--ok-soft);color:var(--ok);border-radius:var(--r);padding:12px 14px;font-weight:500}
 .warnline{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:12px 14px}
 /* admin */
@@ -271,12 +289,10 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
         <input type="file" id="baseIn" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <div class="t2" id="baseInfo" style="margin:-6px 0 12px"></div>
-      <div class="card" id="solBox" style="margin-bottom:16px"></div>
-      <div class="kpis" id="invKpis"></div>
-      <div class="toolbar">
-        <select id="invVer" style="width:auto"><option value="sinreg">Base: sin registrar en la app</option><option value="faltan">Base: faltan por contar este mes</option><option value="hechos">Contados este mes</option><option value="fuera">Registrados fuera de la base</option><option value="otrocd">CD distinto a la base</option><option value="traslados">Traslados entre CD</option><option value="resueltas">Solicitudes resueltas</option></select>
-        <input type="search" id="invQ" placeholder="Buscar serial, IMEI, persona o ruta">
-      </div>
+      <div class="card resumen" id="invResumen"></div>
+      <div class="card" id="solBox" style="margin-top:16px" hidden></div>
+      <div class="fchips" id="invChips"></div>
+      <div class="toolbar" style="margin-top:8px"><input type="search" id="invQ" placeholder="Buscar IMEI, serial, persona, ruta o nota"></div>
       <div class="list" id="invList"></div>
     </section>
     <section id="pAna" hidden>
@@ -961,115 +977,111 @@ function cruceBase(per){
   const fuera=S.eq.filter(e=>!enBase.has(e.id) && !['Dado de baja','Perdido'].includes(e.estado));
   return {base,fuera,cAct,cPrev,prev};
 }
+const INV={filtro:'pendientes'};
+const ESTADOS_INV={
+  contado:{t:'Contado este mes',cls:'p-Disponible',var:'--ok'},
+  pendiente:{t:'Registrado · falta contar',cls:'p-proc',var:'--warn'},
+  sinreg:{t:'Sin registrar en la app',cls:'p-Abierta',var:'--bad'},
+  fuera:{t:'Fuera de la base',cls:'p-Asignado',var:'--info'}
+};
 function renderInv(){
   const per=$('#invPer').value||mesActual();
-  const {base,fuera,cAct,cPrev,prev}=cruceBase(per);
+  const {base,fuera,cAct,prev}=cruceBase(per);
   const pendAll=S.sol.filter(x=>x.estado==='Pendiente');
   const bdg=$('#solBadge'); bdg.hidden=!pendAll.length; bdg.textContent=pendAll.length?`${pendAll.length} por autorizar`:'';
+  $('#baseInfo').textContent = S.base?.length ? `Base corporativa: ${S.base.filter(b=>b.cd==='Villavicencio').length} Villavicencio · ${S.base.filter(b=>b.cd==='Yopal').length} Yopal · cargada ${fmtTs(S.base.reduce((a,b)=>b.cargado>a?b.cargado:a,''))}` : 'Sin base corporativa cargada';
   const v=S.ventana; $('#invVentana').textContent = v ? (v.abierta?`Ventana abierta (día ${v.dia} de 5)`:'Ventana cerrada para operadores (abre del 1 al 5)') : '';
-  const baseCd=base.filter(x=>byCd({cd:x.b.cd}));
-  const contados=baseCd.filter(x=>x.c), faltan=baseCd.filter(x=>!x.c);
-  const sinRegistro=faltan.filter(x=>!x.e).length;
-  const otroCd=baseCd.filter(x=>x.e && x.e.cd!==x.b.cd);
-  const fueraCd=fuera.filter(byCd);
-  const fueraContados=fueraCd.filter(e=>cAct.has(e.id));
-  const faltanPrev=faltan.filter(x=>x.prev).length;
-  const malos=[...cAct.values()].filter(c=>byCd(c)&&c.condicion==='Malo').length;
-  const pend=pendAll.filter(byCd);
+  // ---- un solo listado con estado por equipo ----
+  const items=[];
+  base.filter(x=>byCd({cd:x.b.cd})).forEach(x=>items.push({imei:x.b.imei,b:x.b,e:x.e,c:x.c,prev:x.prev,
+    estado: !x.e ? 'sinreg' : (x.c ? 'contado' : 'pendiente'), otroCd: !!(x.e && x.e.cd!==x.b.cd)}));
+  fuera.filter(byCd).forEach(e=>items.push({imei:e.imei||e.serial,b:null,e,c:cAct.get(e.id)||null,prev:false,estado:'fuera',otroCd:false}));
+  const n=k=>items.filter(i=>i.estado===k).length;
+  const totalBase=items.filter(i=>i.b).length, contados=n('contado'), pend=n('pendiente'), sinreg=n('sinreg'), fueraN=n('fuera');
+  const otroCd=items.filter(i=>i.otroCd).length;
+  const trasAll=S.mov.filter(m=>m.accion==='Traslado de CD').filter(m=>!S.cd||m.cd===S.cd||String(m.detalle).startsWith(S.cd));
+  const trasMes=trasAll.filter(m=>String(m.ts).slice(0,7)===per);
+  const faltanPrev=items.filter(i=>i.estado!=='contado'&&i.prev).length;
+  const malos=items.filter(i=>i.c?.condicion==='Malo').length;
+  const pctOf=x=>totalBase?Math.round(x*100/totalBase):0;
+  const seg=(k,val)=>val?`<button class="seg-${k}" data-invf="${k==='contado'?'contados':k==='pendiente'?'registrados':k}" style="flex:${val}" title="${esc(ESTADOS_INV[k].t)}: ${val}"></button>`:'';
+  $('#invResumen').innerHTML=`
+    <div class="resumen-top">
+      <div><div class="lbl">Inventario de ${esc(nombreMes(per))} · ${esc(S.cd||'ambos CD')}</div>
+        <div class="big"><b>${contados}</b> de ${totalBase} contados <span class="t2">(${pctOf(contados)}%)</span></div></div>
+      <div class="t2" style="text-align:right">${v?.abierta?'Ventana abierta hoy':'Próxima ventana: del 1 al 5'}</div>
+    </div>
+    <div class="stackbar">${seg('contado',contados)}${seg('pendiente',pend)}${seg('sinreg',sinreg)}${!totalBase?'<span class="t2" style="padding:0 8px">Sin base cargada</span>':''}</div>
+    <div class="leyenda">
+      <span><i style="background:var(--ok)"></i>Contados <b>${contados}</b></span>
+      <span><i style="background:var(--warn)"></i>Registrados, falta contar <b>${pend}</b></span>
+      <span><i style="background:var(--bad)"></i>Sin registrar en la app <b>${sinreg}</b></span>
+      ${fueraN?`<span><i style="background:var(--info)"></i>Fuera de la base <b>${fueraN}</b></span>`:''}
+    </div>
+    ${(otroCd||trasMes.length||faltanPrev||malos)?`<div class="alertas">${[
+      otroCd?`<b>${otroCd}</b> en otro CD distinto al de la base`:'',
+      trasMes.length?`<b>${trasMes.length}</b> traslado${trasMes.length>1?'s':''} este mes`:'',
+      faltanPrev?`<b>${faltanPrev}</b> estaban el mes anterior y aún no se cuentan`:'',
+      malos?`<b>${malos}</b> en condición mala`:''].filter(Boolean).join(' · ')}</div>`:''}`;
+  // ---- solicitudes (solo si hay pendientes) ----
   const baseIdx=new Map((S.base||[]).map(b=>[b.imei,b]));
-  const pendBase=pend.filter(x=>baseIdx.has(x.imei)||baseIdx.has(x.imei2));
-  const avance=baseCd.length?Math.round(contados.length*100/baseCd.length):0;
-  const trasAll=S.mov.filter(m=>m.accion==='Traslado de CD'), tras=trasAll.filter(m=>String(m.ts).slice(0,7)===per).filter(m=>!S.cd||m.cd===S.cd||String(m.detalle).startsWith(S.cd));
-  $('#invKpis').innerHTML=[
-    ['En la base corporativa',baseCd.length,'',`${S.cd||'Ambos CD'}`],
-    ['Contados de la base',contados.length,'ok',`${avance}% de avance`],
-    ['Faltan de la base',faltan.length,faltan.length?'alert':'',sinRegistro?`${sinRegistro} aún sin registrar en la app`:''],
-    ['Fuera de la base',fueraCd.length,fueraCd.length?'warn':'',`${fueraContados.length} contados este mes`],
-    ['CD distinto a la base',otroCd.length,otroCd.length?'warn':''],
-    [`Estaban en ${nombreMes(prev).split(' ')[0]} y faltan`,faltanPrev,faltanPrev?'alert':''],
-    ['Traslados del mes',tras.length,tras.length?'warn':'',tras.length?`${tras.filter(m=>m.cd==='Yopal').length} a Yopal · ${tras.filter(m=>m.cd==='Villavicencio').length} a Villavicencio`:''],
-    ['Condición mala',malos,malos?'warn':''],
-    ['Por autorizar',pend.length,pend.length?'warn':'',pendBase.length?`${pendBase.length} están en la base`:'']
-  ].map(([l,n,k,sub])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div>${sub?`<div class="t2" style="margin-top:4px">${esc(sub)}</div>`:''}</div>`).join('');
-  // solicitudes pendientes
+  const pendSol=pendAll.filter(byCd), pendBase=pendSol.filter(x=>baseIdx.has(x.imei)||baseIdx.has(x.imei2));
   const etiquetaBase=x=>{ const b=baseIdx.get(x.imei)||baseIdx.get(x.imei2); return b ? `<span class="pill p-Disponible">En base: ${esc(b.cd)}</span>${b.cd!==x.cd?` <span class="pill p-proc">reportado en ${esc(x.cd)}</span>`:''}` : '<span class="pill p-Abierta">No está en la base</span>'; };
-  $('#solBox').innerHTML = `<div class="vizhead"><div><h2 style="font-size:22px">Equipos nuevos por autorizar</h2><div class="t2">Reportados por los operadores y que no estaban registrados. Solo entran cuando tú los autorizas.</div></div>
-      ${pendBase.length?`<button class="btn primary" id="solBaseAll">${pendBase.length===1?'Autorizar el que está en la base':`Autorizar los ${pendBase.length} que están en la base`}</button>`:''}</div>`+
-    (pend.length ? `<div class="list" style="margin-top:10px">${pend.map(x=>`<div class="row nrow">
+  $('#solBox').hidden=!pendSol.length;
+  $('#solBox').innerHTML = !pendSol.length ? '' : `<div class="vizhead"><div><h2 style="font-size:22px">${pendSol.length} equipo${pendSol.length>1?'s':''} nuevo${pendSol.length>1?'s':''} por autorizar</h2><div class="t2">Los operadores los escanearon y no estaban registrados. Solo entran cuando tú los autorizas.</div></div>
+      ${pendBase.length?`<button class="btn primary" id="solBaseAll">${pendBase.length===1?'Autorizar el que está en la base':`Autorizar los ${pendBase.length} que están en la base`}</button>`:''}</div>
+    <div class="list" style="margin-top:10px">${pendSol.map(x=>`<div class="row nrow">
       <div><div class="mono">${esc(fmtTs(x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
       <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?' / '+esc(x.imei2):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
-      <div><div class="t1">${x.origen==='Inventario'?'Encontrado en el inventario del mes':'Solicitud de alta'}</div><div class="t2">Reportó: ${esc(x.reg?.nombre||x.reg?.usuario||'—')}${x.payload?.tiene?' · lo tiene '+esc(x.payload.tiene):''}${x.obs?' · '+esc(x.obs):''}</div></div>
+      <div><div class="t1">${x.origen==='Inventario'?'Encontrado en el inventario':'Solicitud de alta'}</div><div class="t2">Reportó: ${esc(x.reg?.nombre||x.reg?.usuario||'—')}${x.payload?.tiene?' · lo tiene '+esc(x.payload.tiene):''}</div></div>
       <div>${etiquetaBase(x)}</div>
-      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}<button class="btn sm primary" data-solok="${x.id}">Autorizar</button><button class="btn sm danger" data-solno="${x.id}">Rechazar</button></div></div>`).join('')}</div>`
-    : '<div class="okline" style="margin-top:10px">No hay solicitudes pendientes.</div>');
+      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}<button class="btn sm primary" data-solok="${x.id}">Autorizar</button><button class="btn sm danger" data-solno="${x.id}">Rechazar</button></div></div>`).join('')}</div>`;
   $('#solBaseAll')?.addEventListener('click',autorizarBase);
-  // lista según la vista elegida
-  const ver=$('#invVer').value, q=fv('invQ').toLowerCase(); const L=$('#invList');
-  const match=t=>!q||String(t).toLowerCase().includes(q);
-  const filaBase=(x,extra)=>`<div class="row">
-      <div><div class="cdtag">Base: ${esc(x.b.cd)} · ${esc(x.b.fabricante||'—')}</div><div class="t1">${x.e?esc([x.e.marca,x.e.modelo].filter(Boolean).join(' ')||'Sin modelo'):'Sin registrar en la app'}</div>${!x.b.imei_valido?'<div class="t2" style="color:var(--bad)">IMEI con dígito verificador inválido en la base</div>':''}</div>
-      <div><div class="mono">IMEI ${esc(x.b.imei)}</div>${x.e?.serial?`<div class="mono t2">S/N ${esc(x.e.serial)}</div>`:''}</div>
-      <div>${x.e?(x.e.estado==='Asignado'?`<div class="t1">${esc(x.e.asignado_a)}</div>`:`<span class="t2">${esc(x.e.estado)}</span>`)+(x.e.cd!==x.b.cd?`<div class="t2" style="color:var(--warn)">En la app: ${esc(x.e.cd)}</div>`:''):'<span class="t2">—</span>'}</div>
-      <div>${extra}</div>
-      <div class="acts">${x.e?`<button class="btn sm" data-edit="${x.e.id}">Ver</button>`:''}</div></div>`;
-  const head=(c4)=>`<div class="row head"><span>Equipo</span><span>Identificación</span><span>Estado / lo tiene</span><span>${c4}</span><span></span></div>`;
-  if(ver==='sinreg'){
-    const rows=baseCd.filter(x=>!x.e).filter(x=>match([x.b.imei,x.b.fabricante,x.b.seguimiento,x.b.cd].join(' ')));
-    L.innerHTML = rows.length ? `<div class="row head"><span>IMEI de la base</span><span>CD · fabricante</span><span>Seguimiento</span><span>Estado base</span><span></span></div>`+rows.map(x=>`<div class="row">
-      <div><div class="mono t1">${esc(x.b.imei)}</div>${!x.b.imei_valido?'<div class="t2" style="color:var(--bad)">IMEI inválido en la base (revisar digitación)</div>':''}</div>
-      <div><div class="cdtag">${esc(x.b.cd)}</div><div class="t2">${esc(x.b.fabricante||'—')}</div></div>
-      <div>${x.b.seguimiento?`<div class="t1" style="font-weight:500">${esc(x.b.seguimiento)}</div><div class="t2">${esc(fmtTs(x.b.seguimiento_ts))}</div>`:'<span class="t2">Sin nota</span>'}</div>
-      <div><span class="pill p-Abierta">Sin registrar</span><div class="t2">${esc(x.b.estado_operativo||'')}</div></div>
-      <div class="acts"><button class="btn sm" data-nota="${esc(x.b.imei)}">${x.b.seguimiento?'Editar nota':'Agregar nota'}</button></div></div>`).join('')
-      +`<div class="empty" style="text-align:left;padding:12px 14px">Celulares que están en la base corporativa pero nadie ha escaneado todavía en la app. Cuando un operador los escanee entrarán como solicitud. Usa las notas para el seguimiento (con quién está, ruta, si está en reparación…).</div>`
-      : `<div class="empty">${baseCd.length?'Todos los celulares de la base ya están registrados en la app.':'No hay base corporativa cargada.'}</div>`;
-  } else if(ver==='faltan'){
-    const rows=faltan.filter(x=>match([x.b.imei,x.e?.serial,x.e?.asignado_a,x.b.fabricante].join(' ')));
-    L.innerHTML = rows.length ? head('Situación')+rows.map(x=>filaBase(x, !x.e?'<span class="pill p-Abierta">Sin registrar</span>':(x.prev?'<span class="pill p-Abierta">Estaba el mes anterior</span>':'<span class="pill p-proc">Registrado, sin contar</span>'))).join('')
-      : `<div class="empty">${baseCd.length?'Todos los equipos de la base están contados en '+esc(nombreMes(per))+'.':'No hay base corporativa cargada.'}</div>`;
-  } else if(ver==='hechos'){
-    const rows=[...cAct.values()].filter(byCd).map(c=>({c,e:S.eq.find(e=>e.id===c.equipo_id)})).filter(({e,c})=>e&&match([e.serial,e.imei,c.tiene,c.ruta,c.obs,e.marca,e.modelo].join(' '))).sort((a,b)=>String(b.c.ts).localeCompare(String(a.c.ts)));
-    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Lo tiene</span><span>Condición</span><span></span></div>`+rows.map(({e,c})=>`<div class="row">
-      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div><div class="t2">${esc(fmtTs(c.ts))} · ${esc(c.perfiles?.nombre||c.perfiles?.usuario||'—')}</div></div>
-      <div><div class="mono">IMEI ${esc(e.imei||'—')}</div>${e.serial?`<div class="mono t2">S/N ${esc(e.serial)}</div>`:''}</div>
-      <div><div class="t1">${esc(c.tiene||'—')}</div><div class="t2">${esc([c.ruta&&'Ruta '+c.ruta,c.obs].filter(Boolean).join(' · '))}</div></div>
-      <div><span class="pill ${c.condicion==='Malo'?'p-Abierta':c.condicion==='Regular'?'p-proc':'p-Disponible'}">${esc(c.condicion)}</span></div>
-      <div class="acts">${c.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos (${c.fotos.length})</button>`:''}</div></div>`).join('')
-      : '<div class="empty">Aún no hay equipos contados en este mes.</div>';
-  } else if(ver==='fuera'){
-    const rows=fueraCd.filter(e=>match([e.serial,e.imei,e.imei2,e.asignado_a,e.marca,e.modelo].join(' ')));
-    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Estado</span><span>Este mes</span><span></span></div>`+rows.map(e=>`<div class="row">
-      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div></div>
-      <div><div class="mono">IMEI ${esc(e.imei||'—')}${e.imei2?' / '+esc(e.imei2):''}</div>${e.serial?`<div class="mono t2">S/N ${esc(e.serial)}</div>`:''}</div>
-      <div>${e.estado==='Asignado'?`<div class="t1">${esc(e.asignado_a)}</div>`:`<span class="t2">${esc(e.estado)}</span>`}</div>
-      <div>${cAct.has(e.id)?'<span class="pill p-Disponible">Contado</span>':'<span class="pill p-baja">Sin contar</span>'}</div>
-      <div class="acts"><button class="btn sm" data-edit="${e.id}">Ver</button></div></div>`).join('')
-      +`<div class="empty" style="text-align:left;padding:12px 14px">Equipos registrados en la app cuyo IMEI no aparece en la base corporativa. Confirma si son equipos nuevos, de otra gerencia o si la base está desactualizada.</div>`
-      : '<div class="empty">Todos los equipos registrados están en la base corporativa.</div>';
-  } else if(ver==='traslados'){
-    const rows=trasAll.filter(m=>!S.cd||m.cd===S.cd||String(m.detalle).startsWith(S.cd)).filter(m=>match([m.imei,m.serial,m.detalle,m.perfiles?.nombre].join(' ')));
+  // ---- filtros con conteo ----
+  const resueltas=S.sol.filter(x=>x.estado!=='Pendiente'&&byCd(x));
+  const FILTROS=[['pendientes','Por revisar',pend+sinreg],['todos','Todos',items.length],['contados','Contados',contados],['registrados','Registrados sin contar',pend],['sinreg','Sin registrar',sinreg],['fuera','Fuera de la base',fueraN],['otrocd','CD distinto',otroCd],['traslados','Traslados',trasAll.length],['resueltas','Solicitudes resueltas',resueltas.length]];
+  $('#invChips').innerHTML=FILTROS.map(([k,t,c])=>`<button type="button" class="fchip ${INV.filtro===k?'on':''}" data-invf="${k}">${esc(t)} <b>${c}</b></button>`).join('');
+  // ---- lista ----
+  const q=fv('invQ').toLowerCase(); const match=t=>!q||String(t).toLowerCase().includes(q); const L=$('#invList');
+  const f=INV.filtro;
+  if(f==='traslados'){
+    const rows=trasAll.filter(m=>match([m.imei,m.serial,m.detalle,m.perfiles?.nombre].join(' ')));
     L.innerHTML = rows.length ? `<div class="row head hrow"><span>Fecha</span><span>Traslado</span><span>Equipo</span><span>Detalle</span><span>Registró</span></div>`+rows.map(m=>`<div class="row hrow">
       <div class="mono">${esc(fmtTs(m.ts))}</div><div class="t1">${esc(String(m.detalle).split(' (')[0])}</div>
       <div><span class="mono">${esc(m.imei||m.serial)}</span></div><div class="t2">${esc(m.detalle)}${m.fotos?.length?`<div><button class="btn sm" style="margin-top:4px" data-fotos="${esc(JSON.stringify(m.fotos))}">Ver fotos (${m.fotos.length})</button></div>`:''}</div>
-      <div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('')
-      +`<div class="empty" style="text-align:left;padding:12px 14px">Un traslado se registra solo cuando un equipo se escanea (inventario, entrega, devolución o novedad) en un CD distinto al que tenía. El equipo queda en el nuevo CD y marcado "Revisar". Si el traslado es definitivo, actualiza también la base corporativa.</div>`
-      : '<div class="empty">No hay traslados registrados.</div>';
-  } else if(ver==='otrocd'){
-    const rows=otroCd.filter(x=>match([x.b.imei,x.e?.serial,x.e?.asignado_a].join(' ')));
-    L.innerHTML = rows.length ? head('Diferencia')+rows.map(x=>filaBase(x,`<span class="pill p-proc">Base: ${esc(x.b.cd)} → App: ${esc(x.e.cd)}</span>`)).join('')
-      +`<div class="empty" style="text-align:left;padding:12px 14px">La base corporativa los tiene en un CD y en la app están registrados en otro. Confirma dónde están físicamente; si se trasladaron, actualiza la base corporativa o corrige el CD con "Ver".</div>`
-      : '<div class="empty">Ningún equipo tiene un CD distinto al de la base.</div>';
-  } else {
-    const rows=S.sol.filter(x=>x.estado!=='Pendiente'&&byCd(x)).filter(x=>match([x.serial,x.imei,x.marca,x.modelo,x.motivo].join(' ')));
+      <div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('') : '<div class="empty">No hay traslados registrados.</div>';
+    return;
+  }
+  if(f==='resueltas'){
+    const rows=resueltas.filter(x=>match([x.serial,x.imei,x.marca,x.modelo,x.motivo].join(' ')));
     L.innerHTML = rows.length ? rows.map(x=>`<div class="row nrow">
       <div><div class="mono">${esc(fmtTs(x.resuelto_ts||x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
       <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
       <div><div class="t2">Reportó ${esc(x.reg?.nombre||x.reg?.usuario||'—')} · resolvió ${esc(x.res?.nombre||x.res?.usuario||'—')}</div>${x.motivo?`<div class="t2">${esc(x.motivo)}</div>`:''}</div>
       <div><span class="pill ${x.estado==='Aprobada'?'p-Disponible':'p-Abierta'}">${esc(x.estado)}</span></div>
-      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}</div></div>`).join('')
-      : '<div class="empty">No hay solicitudes resueltas.</div>';
+      <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}</div></div>`).join('') : '<div class="empty">No hay solicitudes resueltas.</div>';
+    return;
   }
-  $('#baseInfo').textContent = S.base?.length ? `Base corporativa: ${S.base.filter(b=>b.cd==='Villavicencio').length} Villavicencio · ${S.base.filter(b=>b.cd==='Yopal').length} Yopal · cargada ${fmtTs(S.base.reduce((a,b)=>b.cargado>a?b.cargado:a,''))}` : 'Sin base corporativa cargada';
+  const sel=items.filter(i=> f==='todos' ? true : f==='pendientes' ? (i.estado==='pendiente'||i.estado==='sinreg') : f==='contados' ? i.estado==='contado' : f==='registrados' ? i.estado==='pendiente' : f==='otrocd' ? i.otroCd : i.estado===f)
+    .filter(i=>match([i.imei,i.e?.imei2,i.e?.serial,i.e?.asignado_a,i.c?.tiene,i.e?.ruta,i.b?.seguimiento,i.e?.marca,i.e?.modelo].join(' ')))
+    .sort((a,b)=>['sinreg','pendiente','fuera','contado'].indexOf(a.estado)-['sinreg','pendiente','fuera','contado'].indexOf(b.estado) || String(a.imei).localeCompare(String(b.imei)));
+  if(!sel.length){ L.innerHTML=`<div class="empty">${f==='pendientes'?'No hay equipos por revisar: todo lo de la base está contado.':'No hay equipos en este filtro.'}</div>`; return; }
+  L.innerHTML=`<div class="row head irow"><span>Estado</span><span>IMEI / equipo</span><span>CD</span><span>Detalle</span><span></span></div>`+sel.map(i=>{
+    const E=ESTADOS_INV[i.estado]; const e=i.e, c=i.c;
+    const modelo=e?([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo'):(i.b?.fabricante||'—');
+    let det='';
+    if(c) det=`<div class="t1" style="font-weight:500">${esc(c.condicion)}${c.tiene?' · lo tiene '+esc(c.tiene):''}</div><div class="t2">Contado ${esc(fmtTs(c.ts))} por ${esc(c.perfiles?.nombre||c.perfiles?.usuario||'—')}</div>`;
+    else if(e) det=`<div class="t2">${e.estado==='Asignado'?'Asignado a <b>'+esc(e.asignado_a)+'</b>'+(e.ruta?' · ruta '+esc(e.ruta):''):esc(e.estado)}${i.prev?' · <span style="color:var(--bad)">estaba el mes anterior</span>':''}</div>`;
+    if(i.b?.seguimiento) det+=`<div class="t2">Nota: ${esc(i.b.seguimiento)}</div>`;
+    if(i.b && !i.b.imei_valido) det+=`<div class="t2" style="color:var(--bad)">IMEI inválido en la base (revisar digitación)</div>`;
+    const cd = i.b ? (i.otroCd ? `<div>Base: ${esc(i.b.cd)}</div><div style="color:var(--warn);font-weight:600">App: ${esc(e.cd)}</div>` : esc(i.b.cd)) : esc(e?.cd||'');
+    return `<div class="row irow">
+      <div><span class="pill ${E.cls}">${esc(E.t)}</span></div>
+      <div><div class="mono t1">${esc(i.imei)}</div><div class="t2">${esc(modelo)}${e?.serial?' · S/N '+esc(e.serial):''}</div></div>
+      <div class="t2">${cd}</div>
+      <div>${det||'<span class="t2">—</span>'}</div>
+      <div class="acts">${c?.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos</button>`:''}${e?`<button class="btn sm" data-edit="${e.id}">Ver</button>`:''}${i.b?`<button class="btn sm" data-nota="${esc(i.b.imei)}">${i.b.seguimiento?'Nota':'+ Nota'}</button>`:''}</div></div>`;
+  }).join('');
 }
 function notaBase(imei){
   const b=(S.base||[]).find(x=>x.imei===imei); if(!b) return;
@@ -1281,6 +1293,7 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.uact){ const u=S.usr.find(x=>x.id===t.dataset.uact); await sb.from('perfiles').update({activo:!u.activo, rol:u.rol==='pendiente'?'operador':u.rol}).eq('id',u.id); loadAll(); }
   if(t.dataset.urol){ const u=S.usr.find(x=>x.id===t.dataset.urol); await sb.from('perfiles').update({rol:u.rol==='admin'?'operador':'admin'}).eq('id',u.id); loadAll(); }
   if(t.dataset.upass){ const u=S.usr.find(x=>x.id===t.dataset.upass); cambiarClave(u); }
+  if(t.dataset.invf){ INV.filtro=t.dataset.invf; renderInv(); $('#invChips').scrollIntoView({block:'start',behavior:'smooth'}); }
   if(t.dataset.nota){ notaBase(t.dataset.nota); }
   if(t.dataset.solok){ resolverSol(t.dataset.solok,true); }
   if(t.dataset.solno){ resolverSol(t.dataset.solno,false); }
@@ -1299,7 +1312,7 @@ $('#invPer').addEventListener('change',loadInv);
 ['anaPer','anaTipo'].forEach(id=>$('#'+id).addEventListener('change',renderAna));
 $('#anaEjemplo').onclick=()=>{ ANA.ejemplo=!ANA.ejemplo; renderAna(); };
 let anaRT=null, anaW=innerWidth; addEventListener('resize',()=>{ if(innerWidth===anaW) return; anaW=innerWidth; clearTimeout(anaRT); anaRT=setTimeout(()=>{ if(!$('#pAna').hidden) renderAna(); },200); });
-['invVer','invQ'].forEach(id=>$('#'+id).addEventListener('input',renderInv));
+$('#invQ').addEventListener('input',renderInv);
 $('#baseUp').onclick=()=>$('#baseIn').click();
 $('#baseIn').onchange=ev=>{ const f=ev.target.files[0]; ev.target.value=''; if(f) cargarBase(f); };
 $('#invExport').onclick=()=>{
@@ -1310,9 +1323,9 @@ $('#invExport').onclick=()=>{
       ['Inventario '+per]:c?'Inventariado':'FALTA',Condición:c?.condicion||'','Lo tiene':c?.tiene||'',Ruta:c?.ruta||'',Observaciones:c?.obs||'','Fecha conteo':c?fmtTs(c.ts):'','Registró':c?(c.perfiles?.nombre||c.perfiles?.usuario||''):'',
       ['Estaba en '+prev]:cPrev.has(e.id)?'Sí':'No','Fotos':c?.fotos?.length||0}; });
   const cr=cruceBase(per);
-  const comp=cr.base.filter(x=>byCd({cd:x.b.cd})).map(x=>({'CD base':x.b.cd,IMEI:x.b.imei,Fabricante:x.b.fabricante,'Estado operativo':x.b.estado_operativo,'IMEI válido':x.b.imei_valido?'Sí':'NO',Seguimiento:x.b.seguimiento||'',
+  const comp=cr.base.filter(x=>byCd({cd:x.b.cd})).map(x=>({Estado:!x.e?'Sin registrar en la app':(x.c?'Contado':'Registrado - falta contar'),'CD base':x.b.cd,IMEI:x.b.imei,Fabricante:x.b.fabricante,'Estado operativo':x.b.estado_operativo,'IMEI válido':x.b.imei_valido?'Sí':'NO',Seguimiento:x.b.seguimiento||'',
       'Registrado en app':x.e?'Sí':'No','CD en app':x.e?.cd||'',Serial:x.e?.serial||'',['Contado '+per]:x.c?'Sí':'FALTA',Condición:x.c?.condicion||'','Lo tiene':x.c?.tiene||'','Fecha conteo':x.c?fmtTs(x.c.ts):'',['Contado '+cr.prev]:x.prev?'Sí':'No'}))
-    .concat(cr.fuera.filter(byCd).map(e=>({'CD base':'NO ESTÁ EN LA BASE',IMEI:e.imei,Fabricante:e.marca,'Estado operativo':'','IMEI válido':isImei(e.imei)?'Sí':'NO','Registrado en app':'Sí','CD en app':e.cd,Serial:e.serial,['Contado '+per]:cr.cAct.has(e.id)?'Sí':'No'})));
+    .concat(cr.fuera.filter(byCd).map(e=>({Estado:'Fuera de la base','CD base':'NO ESTÁ EN LA BASE',IMEI:e.imei,Fabricante:e.marca,'Estado operativo':'','IMEI válido':isImei(e.imei)?'Sí':'NO','Registrado en app':'Sí','CD en app':e.cd,Serial:e.serial,['Contado '+per]:cr.cAct.has(e.id)?'Sí':'No'})));
   const sol=S.sol.filter(byCd).map(x=>({Fecha:fmtTs(x.creado),Origen:x.origen,Estado:x.estado,CD:x.cd,Tipo:x.tipo,Marca:x.marca,Modelo:x.modelo,Serial:x.serial,IMEI:x.imei,'Reportó':x.reg?.nombre||x.reg?.usuario||'','Resolvió':x.res?.nombre||x.res?.usuario||'',Motivo:x.motivo}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(comp.length?comp:[{'Sin datos':''}]),'Base vs inventario');
