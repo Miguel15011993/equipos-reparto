@@ -480,10 +480,25 @@ function addCode(raw, origen){
   if(isImei(d) && /^\D*\d{15}\D*$/.test(c)){
     if(SC.imeis.length===1 && d.slice(0,8)!==SC.imeis[0].slice(0,8)){ renderScan(); return false; } // un IMEI 2 de otro modelo es una lectura errada
     if(!SC.imeis.includes(d) && SC.imeis.length<2) SC.imeis.push(d); }
+  else if(/[;|]/.test(c)){ // etiqueta con varios datos, p. ej. DataMatrix de impresoras Honeywell "S/N;P/N"
+    const partes=c.split(/[;|]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+    const esPN=x=>/^(P\/?N[:\s]*)?[A-Z]{2}\d[A-Z0-9]{6,}$/.test(x) && !/^\d/.test(x);
+    const sn=partes.find(x=>/^(S\/?N[:\s]*)?\d{4,}[A-Z][A-Z0-9]{2,}$/.test(x)) || partes.find(x=>isSerialCand(x)&&!esPN(x));
+    const pn=partes.find(x=>x!==sn && esPN(x));
+    if(sn && !SC.serial) SC.serial=sn.replace(/^S\/?N[:\s]*/,'');
+    if(pn){ SC.pn=pn.replace(/^P\/?N[:\s]*/,''); autoImpresora(SC.pn); }
+  }
   else if(!SC.serial && isSerialCand(c)) SC.serial=c.toUpperCase();
   try{ navigator.vibrate?.(80); }catch{}
   pitar(); const aim=$('#scVid .aim'); if(aim){ aim.classList.add('ok'); setTimeout(()=>aim.classList.remove('ok'),450); }
   renderScan(); revisarCompleto(); return true;
+}
+// Si se reconoce un P/N de impresora Honeywell (RP2/RP4…), llena tipo, marca y modelo cuando están vacíos
+function autoImpresora(pn){
+  const m=/^(RP\d|PR\d|PB\d{2}|PC\d{2}|PX\d)/.exec(pn); if(!m) return;
+  const t=$('#rTipo'); if(t && t.value!=='Impresora'){ t.value='Impresora'; t.dispatchEvent(new Event('change')); }
+  const ma=$('#rMarca'); if(ma && !ma.value.trim()) ma.value='Honeywell';
+  const mo=$('#rModelo'); if(mo && !mo.value.trim()) mo.value=`${m[1]} (P/N ${pn})`;
 }
 function pitar(){ try{ const ac=cam.ac; if(!ac) return; const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=1650; g.gain.setValueAtTime(.12,ac.currentTime); g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.12); o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+.13); }catch{} }
 function faltantes(){
@@ -547,6 +562,7 @@ function lineaBase(){
   const d=VERIF.res, box=$('#scVerif'); if(!d||!box||d.en_base===undefined) return;
   const cdForm=$('#rCd')?.value; let t;
   if(d.en_base) t = `Está en la base corporativa de <b>${esc(d.base_cd)}</b>.` + (cdForm&&cdForm!==d.base_cd?` <b>Ojo:</b> lo estás registrando en ${esc(cdForm)}.`:'');
+  else if(($('#rTipo')?.value||d.tipo)==='Impresora') t = 'Impresora: la base corporativa solo incluye celulares, se valida por S/N en la app.';
   else t = '<b>No está en la base corporativa.</b> El administrador lo revisará.';
   box.insertAdjacentHTML('beforeend',`<div style="margin-top:6px;font-size:13px">${t}</div>`);
   if(d.existe && cdForm && d.cd!==cdForm && ACC!=='alta' && !VERIF.bloqueo){
@@ -619,7 +635,7 @@ async function startCam(){
 }
 function stopCam(){
   clearTimeout(cam.timer); cam.timer=null;
-  try{ cam.track?.applyConstraints?.({advanced:[{torch:false}]}); }catch{}
+  try{ cam.track?.applyConstraints?.({advanced:[{torch:false}]})?.catch?.(()=>{}); }catch{}
   cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; cam.track=null;
   const b=$('#scVid'); if(b) b.hidden=true; const t=$('#scTips'); if(t) t.hidden=true; const z=$('#scZoomRow'); if(z) z.hidden=true;
   const c=$('#scCam'); if(c) c.textContent='Abrir cámara';
@@ -650,8 +666,9 @@ async function scanScreen(){
     const { data:{ text } } = await Tesseract.recognize(c,'eng');
     const found=new Set();
     text.split('\n').forEach(line=>{ const d=line.replace(/[^\d]/g,''); for(let i=0;i+15<=d.length;i++){ const w=d.slice(i,i+15); if(isImei(w)) found.add(w); } });
+    const sn=/S\s*\/?\s*N\s*[:.]?\s*([A-Z0-9]{6,20})/i.exec(text.replace(/[ \t]+/g,' ')); if(sn && !SC.serial){ addCode(sn[1].toUpperCase(),'Lectura de texto'); }
     let n=0; found.forEach(x=>{ if(addCode(x,'Lectura pantalla *#06#')) n++; });
-    if(!SC.imeis.length) st.textContent='No pude leer un IMEI válido. Toma la foto de frente, sin reflejo, y que se vean bien los números.'; else renderScan();
+    if(!SC.imeis.length && !SC.serial) st.textContent='No pude leer un IMEI ni un S/N. Toma la foto de frente, sin reflejo, y que se vean bien los números.'; else renderScan();
   }catch{ st.textContent='No se pudo leer la pantalla. Revisa tu conexión e inténtalo de nuevo.'; }
 }
 function scanPanel(){
@@ -661,7 +678,7 @@ function scanPanel(){
     <div class="btns">
       <button type="button" class="btn primary" id="scCam">Abrir cámara</button>
       <button type="button" class="btn" id="scPhoto">Foto de etiqueta</button>
-      <button type="button" class="btn" id="scScreen">Leer pantalla *#06#</button>
+      <button type="button" class="btn" id="scScreen">Leer texto (*#06# o S/N)</button>
       <button type="button" class="btn sm" id="scClear">Limpiar</button>
     </div>
     <div class="vidbox" id="scVid" hidden><video id="scVideo" playsinline muted></video><div class="aim"></div><div class="camctl"><button type="button" id="scTorch" aria-pressed="false" hidden>Linterna</button></div><div class="hint">Centra un código de barras en el recuadro</div></div>
