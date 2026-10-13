@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/dist/iife/ponyfill.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* =================== CONFIGURACIÓN (pega aquí los datos de tu proyecto Supabase) =================== */
@@ -86,8 +87,17 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 .scan .btns{display:flex;flex-wrap:wrap;gap:8px}
 .vidbox{position:relative;border-radius:10px;overflow:hidden;background:#000;max-width:520px;width:100%;aspect-ratio:4/3}
 .vidbox video{width:100%;height:100%;object-fit:cover;display:block}
-.vidbox .aim{position:absolute;left:8%;right:8%;top:38%;bottom:38%;border:2px solid var(--gold);border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.25)}
-.vidbox .hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 2px #000}
+.vidbox .aim{position:absolute;left:5%;right:5%;top:25%;bottom:25%;border:2px solid var(--gold);border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.28);transition:border-color .15s,background .15s}
+.vidbox .aim.ok{border-color:#3ddc84;background:rgba(61,220,132,.18)}
+.vidbox .camctl{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.vidbox .camctl button{background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.vidbox .camctl button[aria-pressed="true"]{background:#f5c542;color:#1a1405;border-color:#f5c542}
+.zoomrow{display:flex;align-items:center;gap:10px;max-width:520px}
+.zoomrow input{flex:1;padding:0}
+.faltan{display:flex;flex-wrap:wrap;gap:6px}
+.faltan span{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--off-soft);color:var(--off)}
+.faltan span.ok{background:var(--ok-soft);color:var(--ok)}
+.vidbox .hint{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-shadow:0 1px 3px #000}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer}
 .chip.imei{border-color:var(--ok);color:var(--ok)}
@@ -257,11 +267,14 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
         <label class="lbl" for="invPer">Mes</label><input type="month" id="invPer" style="width:auto">
         <span class="t2" id="invVentana"></span>
         <button class="btn" id="invExport" type="button">Exportar este mes</button>
+        <button class="btn" id="baseUp" type="button">Actualizar base corporativa (Excel)</button>
+        <input type="file" id="baseIn" accept=".xlsx,.xls,.csv" hidden>
       </div>
+      <div class="t2" id="baseInfo" style="margin:-6px 0 12px"></div>
       <div class="card" id="solBox" style="margin-bottom:16px"></div>
       <div class="kpis" id="invKpis"></div>
       <div class="toolbar">
-        <select id="invVer" style="width:auto"><option value="faltan">Faltan por inventariar</option><option value="hechos">Inventariados</option><option value="resueltas">Solicitudes resueltas</option></select>
+        <select id="invVer" style="width:auto"><option value="sinreg">Base: sin registrar en la app</option><option value="faltan">Base: faltan por contar este mes</option><option value="hechos">Contados este mes</option><option value="fuera">Registrados fuera de la base</option><option value="otrocd">CD distinto a la base</option><option value="traslados">Traslados entre CD</option><option value="resueltas">Solicitudes resueltas</option></select>
         <input type="search" id="invQ" placeholder="Buscar serial, IMEI, persona o ruta">
       </div>
       <div class="list" id="invList"></div>
@@ -320,7 +333,7 @@ const pill = e => `<span class="pill ${pillCls(e)}">${esc(e)}</span>`;
 
 if(!/^https:\/\//.test(CONFIG.SUPABASE_URL) || CONFIG.SUPABASE_KEY.startsWith('PEGA')){ $('#vConfig').hidden=false; return; }
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[], sol:[], cnt:[], ventana:null };
+const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[], sol:[], cnt:[], base:[], ventana:null };
 const mesActual = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const mesPrev = per => { const [y,m]=per.split('-').map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const nombreMes = per => { const [y,m]=per.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'}); };
@@ -406,19 +419,38 @@ function zxDecode(ctx,x,y,w,h){
     const r=zx.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src))); return r?.getText()?.trim()||null; }
   catch{ return null; } finally{ zx.reset(); }
 }
+// ---- Lectores de códigos: nativo (Android/Chrome) + ZXing-C++ (WebAssembly, funciona en iPhone y PC) ----
+const FORMATOS=['code_128','code_39','code_93','codabar','ean_13','ean_8','upc_a','upc_e','itf','qr_code','data_matrix','pdf417'];
+let detWasm=null, wasmListo=false;
+function wasmDetector(){
+  if(detWasm) return detWasm;
+  const API=window.BarcodeDetectionAPI; if(!API?.BarcodeDetector) return null;
+  try{ detWasm=new API.BarcodeDetector({formats:FORMATOS}); }catch{ detWasm=null; }
+  return detWasm;
+}
+function precargarLector(){ try{ if(!wasmListo && window.BarcodeDetectionAPI?.prepareZXingModule){ wasmListo=true; window.BarcodeDetectionAPI.prepareZXingModule({fireImmediately:true}).catch(()=>{ wasmListo=false; }); } }catch{} }
 async function nativeDetector(){
   if(cam.det!==null) return cam.det;
   cam.det=false;
-  if('BarcodeDetector' in window){ try{ const f=await BarcodeDetector.getSupportedFormats(); if(f.length) cam.det=new BarcodeDetector({formats:f}); }catch{} }
+  if('BarcodeDetector' in window){ try{ const sup=await BarcodeDetector.getSupportedFormats(); const f=FORMATOS.filter(x=>sup.includes(x)); if(f.includes('code_128')) cam.det=new BarcodeDetector({formats:f}); }catch{} }
   return cam.det;
 }
-async function detectIn(source, canvas, full){
-  const out=new Set(); const det=await nativeDetector();
-  if(det){ try{ (await det.detect(source)).forEach(b=>b.rawValue&&out.add(b.rawValue.trim())); }catch{} }
-  if(!out.size || full){
+function filtrado(src,filtro){ const w=src.width||src.videoWidth, h=src.height||src.videoHeight; const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.filter=filtro; x.drawImage(src,0,0,w,h); return c; }
+// full=true: foto (todos los métodos); full=false: cuadro de video (alterna lectores para no congelar)
+async function detectIn(source, canvas, full, cuadro=0){
+  const out=new Set(); const add=r=>(r||[]).forEach(b=>b.rawValue&&out.add(String(b.rawValue).trim()));
+  const nat=await nativeDetector(), wasm=wasmDetector();
+  if(full){
+    if(nat){ try{ add(await nat.detect(canvas)); }catch{} }
+    if(wasm){ try{ add(await wasm.detect(canvas)); }catch{}
+      if(out.size<3){ try{ add(await wasm.detect(filtrado(canvas,'grayscale(1) contrast(1.8)'))); }catch{} } }
+  } else {
+    const lector = nat && wasm ? (cuadro%2 ? wasm : nat) : (nat||wasm);
+    if(lector){ try{ add(await lector.detect(canvas)); }catch{} }
+  }
+  if(!nat && !wasm){ // respaldo: lector anterior en JavaScript
     const ctx=canvas.getContext('2d',{willReadFrequently:true}); const W=canvas.width,H=canvas.height;
-    const crops = full ? [[0,0,W,H],...[0,1,2,3].map(i=>[0,Math.round(i*H/4),W,Math.round(H/4)]),...[0,1,2].map(i=>[0,Math.round(i*H/3),W,Math.round(H/3)])]
-                       : [[0,Math.round(H*.3),W,Math.round(H*.4)]];
+    const crops = full ? [[0,0,W,H],...[0,1,2,3].map(i=>[0,Math.round(i*H/4),W,Math.round(H/4)])] : [[0,0,W,H]];
     zx = full ? zxFull : zxLive;
     for(const c of crops){ const t=zxDecode(ctx,...c); if(t) out.add(t); }
   }
@@ -429,10 +461,28 @@ function addCode(raw, origen){
   if(SC.codes.includes(c)) return false;
   SC.codes.push(c); SC.origen = SC.origen||origen;
   const d=c.replace(/\D/g,'');
-  if(isImei(d) && /^\D*\d{15}\D*$/.test(c)){ if(!SC.imeis.includes(d) && SC.imeis.length<2) SC.imeis.push(d); }
+  if(isImei(d) && /^\D*\d{15}\D*$/.test(c)){
+    if(SC.imeis.length===1 && d.slice(0,8)!==SC.imeis[0].slice(0,8)){ renderScan(); return false; } // un IMEI 2 de otro modelo es una lectura errada
+    if(!SC.imeis.includes(d) && SC.imeis.length<2) SC.imeis.push(d); }
   else if(!SC.serial && isSerialCand(c)) SC.serial=c.toUpperCase();
-  try{ navigator.vibrate?.(60); }catch{}
-  renderScan(); return true;
+  try{ navigator.vibrate?.(80); }catch{}
+  pitar(); const aim=$('#scVid .aim'); if(aim){ aim.classList.add('ok'); setTimeout(()=>aim.classList.remove('ok'),450); }
+  renderScan(); revisarCompleto(); return true;
+}
+function pitar(){ try{ const ac=cam.ac; if(!ac) return; const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=1650; g.gain.setValueAtTime(.12,ac.currentTime); g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.12); o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+.13); }catch{} }
+function faltantes(){
+  if(!SC) return [];
+  const tipo=$('#rTipo')?.value||'Celular';
+  return tipo==='Impresora' ? [['Serial',!!SC.serial]] : [['IMEI 1',!!SC.imeis[0]],['IMEI 2 (si tiene)',!!SC.imeis[1]],['Serial',!!SC.serial]];
+}
+function pintarFaltan(){
+  const f=faltantes(), box=$('#scFaltan'); if(!box) return;
+  box.innerHTML=f.map(([k,ok])=>`<span class="${ok?'ok':''}">${ok?'✓ ':''}${esc(k)}</span>`).join('');
+  const h=$('#scVid .hint'); if(h){ const p=f.find(([,ok])=>!ok); h.textContent = p ? `Apunta al código de barras del ${p[0].replace(' (si tiene)','')}` : 'Lectura completa'; }
+}
+function revisarCompleto(){
+  pintarFaltan();
+  if(cam.stream && faltantes().every(([,ok])=>ok)){ setTimeout(()=>{ if(cam.stream){ stopCam(); toast('Lectura completa. Revisa los datos y continúa.'); } },700); }
 }
 function renderScan(){
   if(!SC) return;
@@ -441,7 +491,7 @@ function renderScan(){
   $('#scChips').querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ const c=SC.codes[+b.dataset.ci]; if(isSerialCand(c)){ SC.serial=c.toUpperCase(); renderScan(); } });
   const st=$('#scState'); const ok = SC.imeis.length||SC.serial;
   st.textContent = ok ? `Leído: ${[SC.imeis[0]&&'IMEI '+SC.imeis[0], SC.imeis[1]&&'IMEI 2 '+SC.imeis[1], SC.serial&&'S/N '+SC.serial].filter(Boolean).join(' · ')}` : '';
-  verificar();
+  verificar(); pintarFaltan();
 }
 // ---- Verificación de duplicados al escanear ----
 let ACC=null, VERIF={key:'',res:null}, verifT=null, FOTOS=[];
@@ -456,7 +506,7 @@ function verificar(){
     const {data,error}=await sb.rpc('verificar_equipo',{p_imei:v.imei,p_imei2:v.imei2,p_serial:v.serial});
     if(VERIF.key!==key || !$('#scVerif')) return;
     if(error){ box.className='verif warnline'; box.textContent='No se pudo verificar ahora (revisa la señal). Se validará al guardar.'; updBloqueo(); return; }
-    VERIF.res=data; pintarVerif(); updBloqueo();
+    VERIF.res=data; pintarVerif(); lineaBase(); updBloqueo();
   },350);
 }
 function pintarVerif(){
@@ -475,6 +525,16 @@ function pintarVerif(){
   } else {
     if(d.existe) set('okline',`Equipo encontrado: ${esc(desc)}`);
     else set('badline','<b>EQUIPO NO REGISTRADO</b><br>Este equipo no está en el inventario. Regístralo primero con "Registrar equipo nuevo"; quedará pendiente de autorización.','Bloqueado: equipo no registrado');
+  }
+}
+function lineaBase(){
+  const d=VERIF.res, box=$('#scVerif'); if(!d||!box||d.en_base===undefined) return;
+  const cdForm=$('#rCd')?.value; let t;
+  if(d.en_base) t = `Está en la base corporativa de <b>${esc(d.base_cd)}</b>.` + (cdForm&&cdForm!==d.base_cd?` <b>Ojo:</b> lo estás registrando en ${esc(cdForm)}.`:'');
+  else t = '<b>No está en la base corporativa.</b> El administrador lo revisará.';
+  box.insertAdjacentHTML('beforeend',`<div style="margin-top:6px;font-size:13px">${t}</div>`);
+  if(d.existe && cdForm && d.cd!==cdForm && ACC!=='alta' && !VERIF.bloqueo){
+    box.insertAdjacentHTML('beforeend',`<div class="warnline" style="margin-top:8px;font-size:14px"><b>TRASLADO:</b> este equipo está registrado en <b>${esc(d.cd)}</b>. Al guardar quedará registrado como trasladado a <b>${esc(cdForm)}</b>. Si no es así, cambia el CD abajo.</div>`);
   }
 }
 function updBloqueo(){
@@ -501,23 +561,53 @@ async function agregarFoto(){
 }
 async function startCam(){
   if(!navigator.mediaDevices?.getUserMedia){ toast('Este navegador no permite usar la cámara. Usa "Foto de etiqueta".'); return; }
-  try{ cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false}); }
-  catch{ toast('No se pudo abrir la cámara. Revisa el permiso de cámara del navegador.'); return; }
-  const v=$('#scVideo'); v.srcObject=cam.stream; $('#scVid').hidden=false; await v.play().catch(()=>{});
+  try{ cam.ac = cam.ac || new (window.AudioContext||window.webkitAudioContext)(); cam.ac.resume?.(); }catch{}
+  precargarLector();
+  try{ cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]},audio:false}); }
+  catch{ try{ cam.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}); }catch{ toast('No se pudo abrir la cámara. Revisa el permiso de cámara del navegador.'); return; } }
+  const v=$('#scVideo'); v.srcObject=cam.stream; $('#scVid').hidden=false; $('#scTips').hidden=false; await v.play().catch(()=>{});
   $('#scCam').textContent='Cerrar cámara';
-  const cv=document.createElement('canvas');
+  // linterna y zoom si el celular los permite
+  const track=cam.stream.getVideoTracks()[0]; cam.track=track; let caps={};
+  try{ caps=track.getCapabilities?.()||{}; }catch{}
+  try{ if(caps.focusMode?.includes('continuous')) await track.applyConstraints({advanced:[{focusMode:'continuous'}]}); }catch{}
+  const tb=$('#scTorch'); tb.hidden=!caps.torch; tb.setAttribute('aria-pressed','false');
+  tb.onclick=async()=>{ const on=tb.getAttribute('aria-pressed')!=='true'; try{ await track.applyConstraints({advanced:[{torch:on}]}); tb.setAttribute('aria-pressed',String(on)); }catch{ toast('Este celular no permite encender la linterna desde la app.'); } };
+  const zr=$('#scZoomRow'), zi=$('#scZoom');
+  if(caps.zoom && caps.zoom.max>caps.zoom.min){
+    zr.hidden=false; zi.min=caps.zoom.min; zi.max=Math.min(caps.zoom.max,8); zi.step=caps.zoom.step||0.1;
+    const ini=Math.min(Math.max(caps.zoom.min,1.5),zi.max); zi.value=ini; $('#scZoomVal').textContent=Number(ini).toFixed(1)+'x';
+    try{ await track.applyConstraints({advanced:[{zoom:ini}]}); }catch{}
+    zi.oninput=async()=>{ $('#scZoomVal').textContent=Number(zi.value).toFixed(1)+'x'; try{ await track.applyConstraints({advanced:[{zoom:Number(zi.value)}]}); }catch{} };
+  } else zr.hidden=true;
+  pintarFaltan();
+  const cv=document.createElement('canvas'); let n=0;
   const tick=async()=>{
     if(!cam.stream) return;
     if(!document.hidden && v.videoWidth){
-      try{ const k=Math.min(1,800/v.videoWidth); cv.width=Math.round(v.videoWidth*k); cv.height=Math.round(v.videoHeight*k);
-        cv.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,cv.width,cv.height);
-        (await detectIn(v,cv,false)).forEach(c=>addCode(c,'Escaneo cámara')); }catch{}
+      try{
+        // zona visible del video (el recuadro recorta a 4:3) y franja del visor, a resolución completa
+        const vw=v.videoWidth, vh=v.videoHeight, box=$('#scVid'); const ar=(box.clientWidth||4)/(box.clientHeight||3);
+        let sx=0, sy=0, sw=vw, sh=vh; if(vw/vh>ar){ sw=vh*ar; sx=(vw-sw)/2; } else { sh=vw/ar; sy=(vh-sh)/2; }
+        const completo = n%5===4;                      // cada 5 cuadros revisa toda la imagen
+        const rx = completo? sx : sx+sw*.03, ry = completo? sy : sy+sh*.2, rw = completo? sw : sw*.94, rh = completo? sh : sh*.6;
+        const k=Math.min(1,1600/rw); cv.width=Math.round(rw*k); cv.height=Math.round(rh*k);
+        cv.getContext('2d',{willReadFrequently:true}).drawImage(v,rx,ry,rw,rh,0,0,cv.width,cv.height);
+        (await detectIn(v,cv,false,n)).forEach(c=>addCode(c,'Escaneo cámara'));
+      }catch{}
+      n++;
     }
-    if(cam.stream) cam.timer=setTimeout(tick,450);   // pausa entre lecturas para no congelar la pantalla
+    if(cam.stream) cam.timer=setTimeout(tick,120);
   };
-  cam.timer=setTimeout(tick,400);
+  cam.timer=setTimeout(tick,500);
 }
-function stopCam(){ clearTimeout(cam.timer); cam.timer=null; cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; const b=$('#scVid'); if(b) b.hidden=true; const c=$('#scCam'); if(c) c.textContent='Abrir cámara'; }
+function stopCam(){
+  clearTimeout(cam.timer); cam.timer=null;
+  try{ cam.track?.applyConstraints?.({advanced:[{torch:false}]}); }catch{}
+  cam.stream?.getTracks().forEach(t=>t.stop()); cam.stream=null; cam.track=null;
+  const b=$('#scVid'); if(b) b.hidden=true; const t=$('#scTips'); if(t) t.hidden=true; const z=$('#scZoomRow'); if(z) z.hidden=true;
+  const c=$('#scCam'); if(c) c.textContent='Abrir cámara';
+}
 function pickPhoto(){ return new Promise(res=>{ const i=$('#camIn'); i.value=''; const on=()=>{ i.removeEventListener('change',on); res(i.files[0]||null); }; i.addEventListener('change',on); i.click(); }); }
 async function photoCanvas(file,max=2200){
   const url=URL.createObjectURL(file);
@@ -527,7 +617,8 @@ async function photoCanvas(file,max=2200){
 }
 async function scanPhoto(){
   const f=await pickPhoto(); if(!f) return; $('#scState').textContent='Buscando códigos en la foto…';
-  try{ const c=await photoCanvas(f); const codes=await detectIn(c,c,true); let n=0; codes.forEach(x=>{ if(addCode(x,'Escaneo foto')) n++; });
+  precargarLector();
+  try{ const c=await photoCanvas(f,3000); const codes=await detectIn(c,c,true); let n=0; codes.forEach(x=>{ if(addCode(x,'Escaneo foto')) n++; });
     if(!n) $('#scState').textContent='No encontré códigos de barras. Acércate más, con buena luz y sin reflejos.'; else renderScan(); }
   catch{ $('#scState').textContent='No se pudo leer la foto.'; }
 }
@@ -557,7 +648,10 @@ function scanPanel(){
       <button type="button" class="btn" id="scScreen">Leer pantalla *#06#</button>
       <button type="button" class="btn sm" id="scClear">Limpiar</button>
     </div>
-    <div class="vidbox" id="scVid" hidden><video id="scVideo" playsinline muted></video><div class="aim"></div><div class="hint">Centra un código de barras en el recuadro</div></div>
+    <div class="vidbox" id="scVid" hidden><video id="scVideo" playsinline muted></video><div class="aim"></div><div class="camctl"><button type="button" id="scTorch" aria-pressed="false" hidden>Linterna</button></div><div class="hint">Centra un código de barras en el recuadro</div></div>
+    <div class="zoomrow" id="scZoomRow" hidden><span class="lbl">Zoom</span><input type="range" id="scZoom"><span class="mono" id="scZoomVal"></span></div>
+    <div class="t2" id="scTips" hidden>Consejos: sostén el celular a unos 15–20 cm, quieto y con buena luz. Si se ve borroso, aléjalo un poco y usa el zoom. En lugares oscuros enciende la linterna. Los códigos se leen solos; el celular pita y vibra con cada uno.</div>
+    <div class="faltan" id="scFaltan"></div>
     <div class="chips" id="scChips"></div>
     <div class="t2" id="scState"></div>
     <div id="scVerif" class="verif" hidden></div>
@@ -569,13 +663,15 @@ function scanPanel(){
   </div>`;
 }
 function bindScan(){
-  SC={imeis:[],serial:'',codes:[],origen:''};
+  SC={imeis:[],serial:'',codes:[],origen:''}; precargarLector();
   $('#scCam').onclick=()=> cam.stream ? stopCam() : startCam();
   $('#scPhoto').onclick=scanPhoto; $('#scScreen').onclick=scanScreen;
   $('#scClear').onclick=()=>{ SC={imeis:[],serial:'',codes:[],origen:''}; renderScan(); $('#scState').textContent=''; };
   VERIF={key:'',res:null};
   if(S.admin){ ['scImei','scImei2','scSerial'].forEach(id=>$('#'+id).addEventListener('input',()=>{ SC.manual=true; verificar(); })); }
-  renderScan();
+  renderScan(); pintarFaltan();
+  $('#rTipo')?.addEventListener('change',pintarFaltan);
+  $('#rCd')?.addEventListener('change',()=>{ if(VERIF.res){ pintarVerif(); lineaBase(); updBloqueo(); } });
 }
 function scanValues(){
   if(S.admin) return { imei:fv('scImei').replace(/\D/g,''), imei2:fv('scImei2').replace(/\D/g,''), serial:fv('scSerial').toUpperCase(), origen: SC.manual?'Manual (admin)':(SC.origen||'Manual (admin)') };
@@ -682,7 +778,7 @@ async function guardar(acc){
   stopCam();
   const nf=p.fotos.length;
   S.sesion.unshift({ts:Date.now(),acc,id:v.imei||v.serial,msg:data+(nf?` (${nf} foto${nf>1?'s':''})`:'')});
-  $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba|ATENCIÓN|Solicitud/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
+  $('#regForm').innerHTML = `<div class="${/Ojo|ya estaba|ATENCIÓN|Solicitud|Traslado/.test(data)?'warnline':'okline'}" style="margin-top:16px">${esc(data)}</div>
     <div class="t2" style="margin-top:8px">${esc(TITULOS[acc])} · ${esc(v.imei?'IMEI '+v.imei:'S/N '+v.serial)}</div>
     <div class="grid2" style="margin-top:16px"><button class="btn primary big" id="rOtro">Registrar otro</button><button class="btn big" id="rInicio">Volver al inicio</button></div>`;
   $('#rOtro').onclick=()=>openForm(acc); $('#rInicio').onclick=()=>closeForm();
@@ -846,58 +942,123 @@ async function loadAll(){
 async function loadInv(){
   if(!$('#invPer').value) $('#invPer').value = S.ventana?.periodo || mesActual();
   const per=$('#invPer').value, prev=mesPrev(per);
-  const [so,co]=await Promise.all([
+  const [so,co,ba]=await Promise.all([
     sb.from('solicitudes').select('*, reg:perfiles!solicitudes_registrado_por_fkey(nombre,usuario), res:perfiles!solicitudes_resuelto_por_fkey(nombre,usuario)').order('creado',{ascending:false}).limit(500),
-    sb.from('inventario_conteos').select('*, perfiles(nombre,usuario)').in('periodo',[per,prev]).limit(5000)
+    sb.from('inventario_conteos').select('*, perfiles(nombre,usuario)').in('periodo',[per,prev]).limit(5000),
+    sb.from('base_corporativa').select('*').order('cd').order('imei').limit(5000)
   ]);
-  if(so.error||co.error){ toast('No se pudo cargar el inventario: '+(so.error||co.error).message); return; }
-  S.sol=so.data; S.cnt=co.data; renderInv();
+  if(so.error||co.error||ba.error){ toast('No se pudo cargar el inventario: '+(so.error||co.error||ba.error).message); return; }
+  S.sol=so.data; S.cnt=co.data; S.base=ba.data; renderInv();
+}
+// Cruce base corporativa ↔ equipos registrados ↔ conteos del mes
+function cruceBase(per){
+  const prev=mesPrev(per);
+  const eqPorImei=new Map(); S.eq.forEach(e=>{ if(e.imei) eqPorImei.set(e.imei,e); if(e.imei2) eqPorImei.set(e.imei2,e); });
+  const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c]));
+  const cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
+  const base=(S.base||[]).map(b=>{ const e=eqPorImei.get(b.imei)||null; const c=e?cAct.get(e.id):null; return {b,e,c,prev:e?cPrev.has(e.id):false}; });
+  const enBase=new Set(base.filter(x=>x.e).map(x=>x.e.id));
+  const fuera=S.eq.filter(e=>!enBase.has(e.id) && !['Dado de baja','Perdido'].includes(e.estado));
+  return {base,fuera,cAct,cPrev,prev};
 }
 function renderInv(){
-  const per=$('#invPer').value||mesActual(), prev=mesPrev(per);
+  const per=$('#invPer').value||mesActual();
+  const {base,fuera,cAct,cPrev,prev}=cruceBase(per);
   const pendAll=S.sol.filter(x=>x.estado==='Pendiente');
   const bdg=$('#solBadge'); bdg.hidden=!pendAll.length; bdg.textContent=pendAll.length?`${pendAll.length} por autorizar`:'';
   const v=S.ventana; $('#invVentana').textContent = v ? (v.abierta?`Ventana abierta (día ${v.dia} de 5)`:'Ventana cerrada para operadores (abre del 1 al 5)') : '';
-  const activos=S.eq.filter(byCd).filter(e=>!['Dado de baja','Perdido'].includes(e.estado));
-  const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c]));
-  const cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
-  const hechos=activos.filter(e=>cAct.has(e.id)), faltan=activos.filter(e=>!cAct.has(e.id));
-  const faltanPrev=faltan.filter(e=>cPrev.has(e.id)).length;
-  const malos=hechos.filter(e=>cAct.get(e.id).condicion==='Malo').length;
+  const baseCd=base.filter(x=>byCd({cd:x.b.cd}));
+  const contados=baseCd.filter(x=>x.c), faltan=baseCd.filter(x=>!x.c);
+  const sinRegistro=faltan.filter(x=>!x.e).length;
+  const otroCd=baseCd.filter(x=>x.e && x.e.cd!==x.b.cd);
+  const fueraCd=fuera.filter(byCd);
+  const fueraContados=fueraCd.filter(e=>cAct.has(e.id));
+  const faltanPrev=faltan.filter(x=>x.prev).length;
+  const malos=[...cAct.values()].filter(c=>byCd(c)&&c.condicion==='Malo').length;
   const pend=pendAll.filter(byCd);
-  const avance=activos.length?Math.round(hechos.length*100/activos.length):0;
-  $('#invKpis').innerHTML=[['Equipos esperados',activos.length,''],['Inventariados',hechos.length,'ok'],['Faltan',faltan.length,faltan.length?'alert':''],['Avance',avance+'%',avance===100?'ok':''],[`Estaban en ${nombreMes(prev).split(' ')[0]} y faltan`,faltanPrev,faltanPrev?'alert':''],['Condición mala',malos,malos?'warn':''],['Por autorizar',pend.length,pend.length?'warn':'']]
-    .map(([l,n,k])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const baseIdx=new Map((S.base||[]).map(b=>[b.imei,b]));
+  const pendBase=pend.filter(x=>baseIdx.has(x.imei)||baseIdx.has(x.imei2));
+  const avance=baseCd.length?Math.round(contados.length*100/baseCd.length):0;
+  const trasAll=S.mov.filter(m=>m.accion==='Traslado de CD'), tras=trasAll.filter(m=>String(m.ts).slice(0,7)===per).filter(m=>!S.cd||m.cd===S.cd||String(m.detalle).startsWith(S.cd));
+  $('#invKpis').innerHTML=[
+    ['En la base corporativa',baseCd.length,'',`${S.cd||'Ambos CD'}`],
+    ['Contados de la base',contados.length,'ok',`${avance}% de avance`],
+    ['Faltan de la base',faltan.length,faltan.length?'alert':'',sinRegistro?`${sinRegistro} aún sin registrar en la app`:''],
+    ['Fuera de la base',fueraCd.length,fueraCd.length?'warn':'',`${fueraContados.length} contados este mes`],
+    ['CD distinto a la base',otroCd.length,otroCd.length?'warn':''],
+    [`Estaban en ${nombreMes(prev).split(' ')[0]} y faltan`,faltanPrev,faltanPrev?'alert':''],
+    ['Traslados del mes',tras.length,tras.length?'warn':'',tras.length?`${tras.filter(m=>m.cd==='Yopal').length} a Yopal · ${tras.filter(m=>m.cd==='Villavicencio').length} a Villavicencio`:''],
+    ['Condición mala',malos,malos?'warn':''],
+    ['Por autorizar',pend.length,pend.length?'warn':'',pendBase.length?`${pendBase.length} están en la base`:'']
+  ].map(([l,n,k,sub])=>`<div class="kpi ${k}"><div class="n">${n}</div><div class="l">${l}</div>${sub?`<div class="t2" style="margin-top:4px">${esc(sub)}</div>`:''}</div>`).join('');
   // solicitudes pendientes
-  $('#solBox').innerHTML = `<h2 style="font-size:22px">Equipos nuevos por autorizar</h2><div class="t2" style="margin-bottom:10px">Equipos que los operadores reportaron y no estaban en el inventario. Solo entran cuando tú los autorizas.</div>`+
-    (pend.length ? `<div class="list">${pend.map(x=>`<div class="row nrow">
+  const etiquetaBase=x=>{ const b=baseIdx.get(x.imei)||baseIdx.get(x.imei2); return b ? `<span class="pill p-Disponible">En base: ${esc(b.cd)}</span>${b.cd!==x.cd?` <span class="pill p-proc">reportado en ${esc(x.cd)}</span>`:''}` : '<span class="pill p-Abierta">No está en la base</span>'; };
+  $('#solBox').innerHTML = `<div class="vizhead"><div><h2 style="font-size:22px">Equipos nuevos por autorizar</h2><div class="t2">Reportados por los operadores y que no estaban registrados. Solo entran cuando tú los autorizas.</div></div>
+      ${pendBase.length?`<button class="btn primary" id="solBaseAll">${pendBase.length===1?'Autorizar el que está en la base':`Autorizar los ${pendBase.length} que están en la base`}</button>`:''}</div>`+
+    (pend.length ? `<div class="list" style="margin-top:10px">${pend.map(x=>`<div class="row nrow">
       <div><div class="mono">${esc(fmtTs(x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
       <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?' / '+esc(x.imei2):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
       <div><div class="t1">${x.origen==='Inventario'?'Encontrado en el inventario del mes':'Solicitud de alta'}</div><div class="t2">Reportó: ${esc(x.reg?.nombre||x.reg?.usuario||'—')}${x.payload?.tiene?' · lo tiene '+esc(x.payload.tiene):''}${x.obs?' · '+esc(x.obs):''}</div></div>
-      <div><span class="pill p-proc">Pendiente</span></div>
+      <div>${etiquetaBase(x)}</div>
       <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}<button class="btn sm primary" data-solok="${x.id}">Autorizar</button><button class="btn sm danger" data-solno="${x.id}">Rechazar</button></div></div>`).join('')}</div>`
-    : '<div class="okline">No hay solicitudes pendientes.</div>');
-  // lista
+    : '<div class="okline" style="margin-top:10px">No hay solicitudes pendientes.</div>');
+  $('#solBaseAll')?.addEventListener('click',autorizarBase);
+  // lista según la vista elegida
   const ver=$('#invVer').value, q=fv('invQ').toLowerCase(); const L=$('#invList');
-  const match=t=>!q||t.toLowerCase().includes(q);
-  if(ver==='faltan'){
-    const rows=faltan.filter(e=>match([e.serial,e.imei,e.imei2,e.asignado_a,e.ruta,e.marca,e.modelo].join(' ')));
-    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Asignado a</span><span>Mes anterior</span><span></span></div>`+rows.map(e=>`<div class="row">
-      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div></div>
-      <div><div class="mono">S/N ${esc(e.serial||'—')}</div>${e.imei?`<div class="mono t2">IMEI ${esc(e.imei)}</div>`:''}</div>
-      <div>${e.estado==='Asignado'?`<div class="t1">${esc(e.asignado_a)}</div><div class="t2">${esc([e.cargo,e.ruta&&'Ruta '+e.ruta].filter(Boolean).join(' · '))}</div>`:`<span class="t2">${esc(e.estado)}</span>`}</div>
-      <div>${cPrev.has(e.id)?'<span class="pill p-Abierta">Sí estaba</span>':'<span class="pill p-baja">No contado</span>'}</div>
-      <div class="acts"><button class="btn sm" data-edit="${e.id}">Ver</button></div></div>`).join('')
-      : `<div class="empty">${activos.length?'Todos los equipos están inventariados en '+esc(nombreMes(per))+'.':'No hay equipos.'}</div>`;
+  const match=t=>!q||String(t).toLowerCase().includes(q);
+  const filaBase=(x,extra)=>`<div class="row">
+      <div><div class="cdtag">Base: ${esc(x.b.cd)} · ${esc(x.b.fabricante||'—')}</div><div class="t1">${x.e?esc([x.e.marca,x.e.modelo].filter(Boolean).join(' ')||'Sin modelo'):'Sin registrar en la app'}</div>${!x.b.imei_valido?'<div class="t2" style="color:var(--bad)">IMEI con dígito verificador inválido en la base</div>':''}</div>
+      <div><div class="mono">IMEI ${esc(x.b.imei)}</div>${x.e?.serial?`<div class="mono t2">S/N ${esc(x.e.serial)}</div>`:''}</div>
+      <div>${x.e?(x.e.estado==='Asignado'?`<div class="t1">${esc(x.e.asignado_a)}</div>`:`<span class="t2">${esc(x.e.estado)}</span>`)+(x.e.cd!==x.b.cd?`<div class="t2" style="color:var(--warn)">En la app: ${esc(x.e.cd)}</div>`:''):'<span class="t2">—</span>'}</div>
+      <div>${extra}</div>
+      <div class="acts">${x.e?`<button class="btn sm" data-edit="${x.e.id}">Ver</button>`:''}</div></div>`;
+  const head=(c4)=>`<div class="row head"><span>Equipo</span><span>Identificación</span><span>Estado / lo tiene</span><span>${c4}</span><span></span></div>`;
+  if(ver==='sinreg'){
+    const rows=baseCd.filter(x=>!x.e).filter(x=>match([x.b.imei,x.b.fabricante,x.b.seguimiento,x.b.cd].join(' ')));
+    L.innerHTML = rows.length ? `<div class="row head"><span>IMEI de la base</span><span>CD · fabricante</span><span>Seguimiento</span><span>Estado base</span><span></span></div>`+rows.map(x=>`<div class="row">
+      <div><div class="mono t1">${esc(x.b.imei)}</div>${!x.b.imei_valido?'<div class="t2" style="color:var(--bad)">IMEI inválido en la base (revisar digitación)</div>':''}</div>
+      <div><div class="cdtag">${esc(x.b.cd)}</div><div class="t2">${esc(x.b.fabricante||'—')}</div></div>
+      <div>${x.b.seguimiento?`<div class="t1" style="font-weight:500">${esc(x.b.seguimiento)}</div><div class="t2">${esc(fmtTs(x.b.seguimiento_ts))}</div>`:'<span class="t2">Sin nota</span>'}</div>
+      <div><span class="pill p-Abierta">Sin registrar</span><div class="t2">${esc(x.b.estado_operativo||'')}</div></div>
+      <div class="acts"><button class="btn sm" data-nota="${esc(x.b.imei)}">${x.b.seguimiento?'Editar nota':'Agregar nota'}</button></div></div>`).join('')
+      +`<div class="empty" style="text-align:left;padding:12px 14px">Celulares que están en la base corporativa pero nadie ha escaneado todavía en la app. Cuando un operador los escanee entrarán como solicitud. Usa las notas para el seguimiento (con quién está, ruta, si está en reparación…).</div>`
+      : `<div class="empty">${baseCd.length?'Todos los celulares de la base ya están registrados en la app.':'No hay base corporativa cargada.'}</div>`;
+  } else if(ver==='faltan'){
+    const rows=faltan.filter(x=>match([x.b.imei,x.e?.serial,x.e?.asignado_a,x.b.fabricante].join(' ')));
+    L.innerHTML = rows.length ? head('Situación')+rows.map(x=>filaBase(x, !x.e?'<span class="pill p-Abierta">Sin registrar</span>':(x.prev?'<span class="pill p-Abierta">Estaba el mes anterior</span>':'<span class="pill p-proc">Registrado, sin contar</span>'))).join('')
+      : `<div class="empty">${baseCd.length?'Todos los equipos de la base están contados en '+esc(nombreMes(per))+'.':'No hay base corporativa cargada.'}</div>`;
   } else if(ver==='hechos'){
-    const rows=hechos.map(e=>({e,c:cAct.get(e.id)})).filter(({e,c})=>match([e.serial,e.imei,c.tiene,c.ruta,c.obs,e.marca,e.modelo].join(' '))).sort((a,b)=>String(b.c.ts).localeCompare(String(a.c.ts)));
+    const rows=[...cAct.values()].filter(byCd).map(c=>({c,e:S.eq.find(e=>e.id===c.equipo_id)})).filter(({e,c})=>e&&match([e.serial,e.imei,c.tiene,c.ruta,c.obs,e.marca,e.modelo].join(' '))).sort((a,b)=>String(b.c.ts).localeCompare(String(a.c.ts)));
     L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Lo tiene</span><span>Condición</span><span></span></div>`+rows.map(({e,c})=>`<div class="row">
       <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div><div class="t2">${esc(fmtTs(c.ts))} · ${esc(c.perfiles?.nombre||c.perfiles?.usuario||'—')}</div></div>
-      <div><div class="mono">S/N ${esc(e.serial||'—')}</div>${e.imei?`<div class="mono t2">IMEI ${esc(e.imei)}</div>`:''}</div>
+      <div><div class="mono">IMEI ${esc(e.imei||'—')}</div>${e.serial?`<div class="mono t2">S/N ${esc(e.serial)}</div>`:''}</div>
       <div><div class="t1">${esc(c.tiene||'—')}</div><div class="t2">${esc([c.ruta&&'Ruta '+c.ruta,c.obs].filter(Boolean).join(' · '))}</div></div>
       <div><span class="pill ${c.condicion==='Malo'?'p-Abierta':c.condicion==='Regular'?'p-proc':'p-Disponible'}">${esc(c.condicion)}</span></div>
       <div class="acts">${c.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos (${c.fotos.length})</button>`:''}</div></div>`).join('')
-      : '<div class="empty">Aún no hay equipos inventariados en este mes.</div>';
+      : '<div class="empty">Aún no hay equipos contados en este mes.</div>';
+  } else if(ver==='fuera'){
+    const rows=fueraCd.filter(e=>match([e.serial,e.imei,e.imei2,e.asignado_a,e.marca,e.modelo].join(' ')));
+    L.innerHTML = rows.length ? `<div class="row head"><span>Equipo</span><span>Identificación</span><span>Estado</span><span>Este mes</span><span></span></div>`+rows.map(e=>`<div class="row">
+      <div><div class="cdtag">${esc(e.cd)} · ${esc(e.tipo)}</div><div class="t1">${esc([e.marca,e.modelo].filter(Boolean).join(' ')||'Sin modelo')}</div></div>
+      <div><div class="mono">IMEI ${esc(e.imei||'—')}${e.imei2?' / '+esc(e.imei2):''}</div>${e.serial?`<div class="mono t2">S/N ${esc(e.serial)}</div>`:''}</div>
+      <div>${e.estado==='Asignado'?`<div class="t1">${esc(e.asignado_a)}</div>`:`<span class="t2">${esc(e.estado)}</span>`}</div>
+      <div>${cAct.has(e.id)?'<span class="pill p-Disponible">Contado</span>':'<span class="pill p-baja">Sin contar</span>'}</div>
+      <div class="acts"><button class="btn sm" data-edit="${e.id}">Ver</button></div></div>`).join('')
+      +`<div class="empty" style="text-align:left;padding:12px 14px">Equipos registrados en la app cuyo IMEI no aparece en la base corporativa. Confirma si son equipos nuevos, de otra gerencia o si la base está desactualizada.</div>`
+      : '<div class="empty">Todos los equipos registrados están en la base corporativa.</div>';
+  } else if(ver==='traslados'){
+    const rows=trasAll.filter(m=>!S.cd||m.cd===S.cd||String(m.detalle).startsWith(S.cd)).filter(m=>match([m.imei,m.serial,m.detalle,m.perfiles?.nombre].join(' ')));
+    L.innerHTML = rows.length ? `<div class="row head hrow"><span>Fecha</span><span>Traslado</span><span>Equipo</span><span>Detalle</span><span>Registró</span></div>`+rows.map(m=>`<div class="row hrow">
+      <div class="mono">${esc(fmtTs(m.ts))}</div><div class="t1">${esc(String(m.detalle).split(' (')[0])}</div>
+      <div><span class="mono">${esc(m.imei||m.serial)}</span></div><div class="t2">${esc(m.detalle)}${m.fotos?.length?`<div><button class="btn sm" style="margin-top:4px" data-fotos="${esc(JSON.stringify(m.fotos))}">Ver fotos (${m.fotos.length})</button></div>`:''}</div>
+      <div class="t2">${esc(m.perfiles?.nombre||m.perfiles?.usuario||'—')}</div></div>`).join('')
+      +`<div class="empty" style="text-align:left;padding:12px 14px">Un traslado se registra solo cuando un equipo se escanea (inventario, entrega, devolución o novedad) en un CD distinto al que tenía. El equipo queda en el nuevo CD y marcado "Revisar". Si el traslado es definitivo, actualiza también la base corporativa.</div>`
+      : '<div class="empty">No hay traslados registrados.</div>';
+  } else if(ver==='otrocd'){
+    const rows=otroCd.filter(x=>match([x.b.imei,x.e?.serial,x.e?.asignado_a].join(' ')));
+    L.innerHTML = rows.length ? head('Diferencia')+rows.map(x=>filaBase(x,`<span class="pill p-proc">Base: ${esc(x.b.cd)} → App: ${esc(x.e.cd)}</span>`)).join('')
+      +`<div class="empty" style="text-align:left;padding:12px 14px">La base corporativa los tiene en un CD y en la app están registrados en otro. Confirma dónde están físicamente; si se trasladaron, actualiza la base corporativa o corrige el CD con "Ver".</div>`
+      : '<div class="empty">Ningún equipo tiene un CD distinto al de la base.</div>';
   } else {
     const rows=S.sol.filter(x=>x.estado!=='Pendiente'&&byCd(x)).filter(x=>match([x.serial,x.imei,x.marca,x.modelo,x.motivo].join(' ')));
     L.innerHTML = rows.length ? rows.map(x=>`<div class="row nrow">
@@ -908,6 +1069,53 @@ function renderInv(){
       <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}</div></div>`).join('')
       : '<div class="empty">No hay solicitudes resueltas.</div>';
   }
+  $('#baseInfo').textContent = S.base?.length ? `Base corporativa: ${S.base.filter(b=>b.cd==='Villavicencio').length} Villavicencio · ${S.base.filter(b=>b.cd==='Yopal').length} Yopal · cargada ${fmtTs(S.base.reduce((a,b)=>b.cargado>a?b.cargado:a,''))}` : 'Sin base corporativa cargada';
+}
+function notaBase(imei){
+  const b=(S.base||[]).find(x=>x.imei===imei); if(!b) return;
+  modal(`<h2>Seguimiento</h2><div class="t2" style="margin-bottom:12px">IMEI <span class="mono">${esc(imei)}</span> · ${esc(b.cd)}</div>
+    <form id="fNota"><div class="field"><label for="notaTx">Nota</label><textarea id="notaTx" placeholder="Ej. Lo tiene Juan Pérez, ruta 104. Escanear el lunes.">${esc(b.seguimiento||'')}</textarea></div>
+    <div class="err" id="notaErr"></div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Guardar nota</button></div></form>`,
+  close=>$('#fNota').addEventListener('submit',async ev=>{ ev.preventDefault();
+    const {error}=await sb.from('base_corporativa').update({seguimiento:fv('notaTx'),seguimiento_ts:new Date().toISOString()}).eq('imei',imei);
+    if(error){ $('#notaErr').textContent=error.message; return; }
+    close(); toast('Nota guardada'); loadInv(); }));
+}
+async function autorizarBase(){
+  const b=$('#solBaseAll'); b.disabled=true; b.textContent='Autorizando…';
+  const {data,error}=await sb.rpc('autorizar_en_base');
+  if(error){ toast(error.message); b.disabled=false; return; }
+  toast(data); loadAll();
+}
+// ---- Actualizar la base corporativa desde Excel (reemplaza la anterior) ----
+async function cargarBase(file){
+  let wb; try{ wb=XLSX.read(await file.arrayBuffer()); }catch{ toast('No se pudo leer el archivo.'); return; }
+  const filas=[], descartes=[];
+  const cdDe=t=>/villav/i.test(t)?'Villavicencio':/yopal/i.test(t)?'Yopal':'';
+  for(const nombre of wb.SheetNames){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[nombre],{defval:'',raw:false});
+    rows.forEach((r,i)=>{
+      const k=Object.keys(r); const col=re=>k.find(x=>re.test(x));
+      const cImei=col(/imei/i); if(!cImei) return;
+      const imei=String(r[cImei]).replace(/\D/g,''); if(!imei) return;
+      const cd=cdDe(String(r[col(/gerencia|room|cd|centro|sede/i)]||''))||cdDe(nombre);
+      if(!cd){ descartes.push(`${nombre} fila ${i+2}: sin CD`); return; }
+      filas.push({imei,cd,fabricante:(t=>t.charAt(0).toUpperCase()+t.slice(1).toLowerCase())(String(r[col(/fabricante|marca/i)]||'').trim()),estado_operativo:String(r[col(/estado/i)]||''),responsable:String(r[col(/responsable/i)]||''),gerencia:String(r[col(/gerencia/i)]||''),imei_valido:isImei(imei),fila:i+2,fuente:file.name});
+    });
+  }
+  const unicos=[...new Map(filas.map(f=>[f.imei,f])).values()];
+  if(!unicos.length){ toast('No encontré una columna de IMEI con datos en el archivo.'); return; }
+  const porCd=cd=>unicos.filter(f=>f.cd===cd).length, inval=unicos.filter(f=>!f.imei_valido).length;
+  modal(`<h2>Actualizar base corporativa</h2><div class="t2" style="margin-bottom:10px">${esc(file.name)}</div>
+    <p><b>${unicos.length}</b> celulares: ${porCd('Villavicencio')} Villavicencio · ${porCd('Yopal')} Yopal${inval?` · <span style="color:var(--bad)">${inval} con IMEI inválido</span>`:''}${filas.length>unicos.length?` · ${filas.length-unicos.length} repetidos omitidos`:''}${descartes.length?` · ${descartes.length} filas sin CD omitidas`:''}.</p>
+    <p class="t2">La base actual (${S.base?.length||0} celulares) se reemplaza por esta. Los equipos registrados, conteos e historial no se tocan.</p>
+    <div class="err" id="bErr"></div><div class="mfoot"><button class="btn" data-close>Cancelar</button><button class="btn primary" id="bOk">Reemplazar base</button></div>`,
+  close=>{ $('#bOk').onclick=async()=>{ $('#bOk').disabled=true;
+    const d=await sb.from('base_corporativa').delete().neq('imei','');
+    if(d.error){ $('#bErr').textContent=d.error.message; $('#bOk').disabled=false; return; }
+    const notas=new Map((S.base||[]).filter(b=>b.seguimiento).map(b=>[b.imei,b])); unicos.forEach(u=>{ const n=notas.get(u.imei); if(n){ u.seguimiento=n.seguimiento; u.seguimiento_ts=n.seguimiento_ts; } });
+    for(let i=0;i<unicos.length;i+=500){ const r=await sb.from('base_corporativa').insert(unicos.slice(i,i+500)); if(r.error){ $('#bErr').textContent='Error cargando: '+r.error.message; return; } }
+    close(); toast(`Base actualizada: ${unicos.length} celulares`); loadInv(); }; });
 }
 function resolverSol(id, aprobar){
   const x=S.sol.find(s=>s.id===id); if(!x) return;
@@ -1073,6 +1281,7 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.uact){ const u=S.usr.find(x=>x.id===t.dataset.uact); await sb.from('perfiles').update({activo:!u.activo, rol:u.rol==='pendiente'?'operador':u.rol}).eq('id',u.id); loadAll(); }
   if(t.dataset.urol){ const u=S.usr.find(x=>x.id===t.dataset.urol); await sb.from('perfiles').update({rol:u.rol==='admin'?'operador':'admin'}).eq('id',u.id); loadAll(); }
   if(t.dataset.upass){ const u=S.usr.find(x=>x.id===t.dataset.upass); cambiarClave(u); }
+  if(t.dataset.nota){ notaBase(t.dataset.nota); }
   if(t.dataset.solok){ resolverSol(t.dataset.solok,true); }
   if(t.dataset.solno){ resolverSol(t.dataset.solno,false); }
   if(t.dataset.fotos){ verFotos(JSON.parse(t.dataset.fotos), t.dataset.titulo||''); }
@@ -1091,6 +1300,8 @@ $('#invPer').addEventListener('change',loadInv);
 $('#anaEjemplo').onclick=()=>{ ANA.ejemplo=!ANA.ejemplo; renderAna(); };
 let anaRT=null, anaW=innerWidth; addEventListener('resize',()=>{ if(innerWidth===anaW) return; anaW=innerWidth; clearTimeout(anaRT); anaRT=setTimeout(()=>{ if(!$('#pAna').hidden) renderAna(); },200); });
 ['invVer','invQ'].forEach(id=>$('#'+id).addEventListener('input',renderInv));
+$('#baseUp').onclick=()=>$('#baseIn').click();
+$('#baseIn').onchange=ev=>{ const f=ev.target.files[0]; ev.target.value=''; if(f) cargarBase(f); };
 $('#invExport').onclick=()=>{
   const per=$('#invPer').value||mesActual(), prev=mesPrev(per);
   const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c])), cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
@@ -1098,8 +1309,13 @@ $('#invExport').onclick=()=>{
     return {CD:e.cd,Tipo:e.tipo,Marca:e.marca,Modelo:e.modelo,Serial:e.serial,IMEI:e.imei,'IMEI 2':e.imei2,'Estado equipo':e.estado,'Asignado a':e.asignado_a,
       ['Inventario '+per]:c?'Inventariado':'FALTA',Condición:c?.condicion||'','Lo tiene':c?.tiene||'',Ruta:c?.ruta||'',Observaciones:c?.obs||'','Fecha conteo':c?fmtTs(c.ts):'','Registró':c?(c.perfiles?.nombre||c.perfiles?.usuario||''):'',
       ['Estaba en '+prev]:cPrev.has(e.id)?'Sí':'No','Fotos':c?.fotos?.length||0}; });
+  const cr=cruceBase(per);
+  const comp=cr.base.filter(x=>byCd({cd:x.b.cd})).map(x=>({'CD base':x.b.cd,IMEI:x.b.imei,Fabricante:x.b.fabricante,'Estado operativo':x.b.estado_operativo,'IMEI válido':x.b.imei_valido?'Sí':'NO',Seguimiento:x.b.seguimiento||'',
+      'Registrado en app':x.e?'Sí':'No','CD en app':x.e?.cd||'',Serial:x.e?.serial||'',['Contado '+per]:x.c?'Sí':'FALTA',Condición:x.c?.condicion||'','Lo tiene':x.c?.tiene||'','Fecha conteo':x.c?fmtTs(x.c.ts):'',['Contado '+cr.prev]:x.prev?'Sí':'No'}))
+    .concat(cr.fuera.filter(byCd).map(e=>({'CD base':'NO ESTÁ EN LA BASE',IMEI:e.imei,Fabricante:e.marca,'Estado operativo':'','IMEI válido':isImei(e.imei)?'Sí':'NO','Registrado en app':'Sí','CD en app':e.cd,Serial:e.serial,['Contado '+per]:cr.cAct.has(e.id)?'Sí':'No'})));
   const sol=S.sol.filter(byCd).map(x=>({Fecha:fmtTs(x.creado),Origen:x.origen,Estado:x.estado,CD:x.cd,Tipo:x.tipo,Marca:x.marca,Modelo:x.modelo,Serial:x.serial,IMEI:x.imei,'Reportó':x.reg?.nombre||x.reg?.usuario||'','Resolvió':x.res?.nombre||x.res?.usuario||'',Motivo:x.motivo}));
   const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(comp.length?comp:[{'Sin datos':''}]),'Base vs inventario');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{'Sin datos':''}]),'Inventario '+per);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sol.length?sol:[{'Sin datos':''}]),'Solicitudes');
   XLSX.writeFile(wb,`inventario_equipos_${per}_${S.cd||'llanos'}.xlsx`);
