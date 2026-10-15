@@ -419,7 +419,10 @@ function pintarVentana(){
 
 // ===================== ESCANEO =====================
 function isImei(v){ v=String(v).replace(/\D/g,''); if(v.length!==15) return false; let s=0; for(let i=0;i<15;i++){ let d=+v[i]; if(i%2){ d*=2; if(d>9) d-=9; } s+=d; } return s%10===0; }
-const isSerialCand = c => !isImei(c) && /^[A-Z0-9\-\/]{5,24}$/i.test(c) && !/^\d{8}$|^\d{12,14}$/.test(c) && !/^\d{15,17}$/.test(c);
+const esGenerico = c => /^(0123456789ABCDEF|0123456789|UNKNOWN|0+|1234567890ABCDEF)$/i.test(String(c).trim());
+const esMeidHex = c => /^(A0|A1|99)[0-9A-F]{12}$/i.test(String(c).trim());
+// serial válido: no IMEI, no EAN, no MEID decimal (18 dígitos) y no el serial genérico de Android
+const isSerialCand = c => !isImei(c) && !esGenerico(c) && /^[A-Z0-9\-\/]{5,24}$/i.test(c) && !/^\d{8}$|^\d{12,14}$/.test(c) && !/^\d{15,20}$/.test(c);
 let cam = { stream:null, timer:null, det:null, busy:false };
 let SC = null;   // estado del escaneo actual: {imeis:[], serial:'', codes:[], origen}
 
@@ -477,9 +480,12 @@ function addCode(raw, origen){
   if(SC.codes.includes(c)) return false;
   SC.codes.push(c); SC.origen = SC.origen||origen;
   const d=c.replace(/\D/g,'');
-  if(isImei(d) && /^\D*\d{15}\D*$/.test(c)){
+  const porCodigo = !/^Lectura/.test(origen);   // código de barras = lectura exacta; texto (OCR) puede fallar
+  if(/^\D*\d{15}\D*$/.test(c) && (isImei(d) || porCodigo)){
     if(SC.imeis.length===1 && d.slice(0,8)!==SC.imeis[0].slice(0,8)){ renderScan(); return false; } // un IMEI 2 de otro modelo es una lectura errada
     if(!SC.imeis.includes(d) && SC.imeis.length<2) SC.imeis.push(d); }
+  else if(esGenerico(c)){ SC.generico=c.toUpperCase(); }   // "Número de serie 0123456789ABCDEF": genérico de Android, se ignora
+  else if(esMeidHex(c) && SC.serial && !esMeidHex(SC.serial)){ SC.serial=c.toUpperCase(); } // preferir MEID HEX como serial
   else if(/[;|]/.test(c)){ // etiqueta con varios datos, p. ej. DataMatrix de impresoras Honeywell "S/N;P/N"
     const partes=c.split(/[;|]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
     const esPN=x=>/^(P\/?N[:\s]*)?[A-Z]{2}\d[A-Z0-9]{6,}$/.test(x) && !/^\d/.test(x);
@@ -513,7 +519,7 @@ function pitar(){ try{ const ac=cam.ac; if(!ac) return; const o=ac.createOscilla
 function faltantes(){
   if(!SC) return [];
   const tipo=$('#rTipo')?.value||'Celular';
-  return tipo==='Impresora' ? [['Serial',!!SC.serial]] : [['IMEI 1',!!SC.imeis[0]],['IMEI 2 (si tiene)',!!SC.imeis[1]],['Serial',!!SC.serial]];
+  return tipo==='Impresora' ? [['Serial',!!SC.serial]] : [['IMEI 1',!!SC.imeis[0]],['IMEI 2 (si tiene)',!!SC.imeis[1]],[SC.generico&&!SC.serial?'Serial (genérico, se omite)':'Serial / MEID',!!SC.serial||!!SC.generico]];
 }
 function pintarFaltan(){
   const f=faltantes(), box=$('#scFaltan'); if(!box) return;
@@ -530,7 +536,9 @@ function renderScan(){
   $('#scChips').innerHTML = SC.codes.length ? SC.codes.map((c,i)=>{ const d=c.replace(/\D/g,''); const k=isImei(d)&&SC.imeis.includes(d)?'imei':(c.toUpperCase()===SC.serial?'ser':''); return `<button type="button" class="chip ${k}" data-ci="${i}" title="${k?'':'Tocar para usar como serial'}">${esc(c)}</button>`; }).join('') : '<span class="t2">Aún no se han leído códigos.</span>';
   $('#scChips').querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{ const c=SC.codes[+b.dataset.ci]; if(isSerialCand(c)){ SC.serial=c.toUpperCase(); renderScan(); } });
   const st=$('#scState'); const ok = SC.imeis.length||SC.serial;
-  st.textContent = ok ? `Leído: ${[SC.imeis[0]&&'IMEI '+SC.imeis[0], SC.imeis[1]&&'IMEI 2 '+SC.imeis[1], SC.serial&&'S/N '+SC.serial].filter(Boolean).join(' · ')}` : '';
+  st.innerHTML = (ok ? esc(`Leído: ${[SC.imeis[0]&&'IMEI '+SC.imeis[0], SC.imeis[1]&&'IMEI 2 '+SC.imeis[1], SC.serial&&'S/N '+SC.serial].filter(Boolean).join(' · ')}`) : '')
+    + (SC.imeis.some(x=>!isImei(x)) ? `<div class="warnline" style="margin-top:6px;font-size:14px"><b>IMEI ALTERADO:</b> el celular reporta un IMEI que no pasa el dígito verificador (${esc(SC.imeis.filter(x=>!isImei(x)).join(', '))}). Compáralo con el sticker de la caja o de la batería. Se registrará marcado para revisión.</div>` : '')
+    + (SC.generico ? `<div class="t2" style="margin-top:4px">Se ignoró el "Número de serie" ${esc(SC.generico)}: es genérico de Android y se repite en todos los equipos.${SC.serial?'':' Escanea el código del MEID (HEX) como serial, si aparece.'}</div>` : '');
   verificar(); pintarFaltan();
 }
 // ---- Verificación de duplicados al escanear ----
@@ -570,7 +578,8 @@ function pintarVerif(){
 function lineaBase(){
   const d=VERIF.res, box=$('#scVerif'); if(!d||!box||d.en_base===undefined) return;
   const cdForm=$('#rCd')?.value; let t;
-  if(d.en_base) t = `Está en la base corporativa de <b>${esc(d.base_cd)}</b>.` + (cdForm&&cdForm!==d.base_cd?` <b>Ojo:</b> lo estás registrando en ${esc(cdForm)}.`:'');
+  if(!d.en_base && d.base_cerca) t = `<span style="color:var(--warn)"><b>IMEI casi igual a uno de la base</b> (${esc(d.base_cd||d.base_cerca_cd)}: <span class="mono">${esc(d.base_cerca)}</span>, difiere en 1 dígito). El celular puede tener el IMEI alterado: compáralo con el sticker de la caja o batería.</span>`;
+  else if(d.en_base) t = `Está en la base corporativa de <b>${esc(d.base_cd)}</b>.` + (cdForm&&cdForm!==d.base_cd?` <b>Ojo:</b> lo estás registrando en ${esc(cdForm)}.`:'');
   else if(($('#rTipo')?.value||d.tipo)==='Impresora') t = 'Impresora: la base corporativa solo incluye celulares, se valida por S/N en la app.';
   else t = '<b>No está en la base corporativa.</b> El administrador lo revisará.';
   box.insertAdjacentHTML('beforeend',`<div style="margin-top:6px;font-size:13px">${t}</div>`);
@@ -674,7 +683,7 @@ async function scanScreen(){
     await loadTesseract();
     const { data:{ text } } = await Tesseract.recognize(c,'eng');
     const found=new Set();
-    text.split('\n').forEach(line=>{ const d=line.replace(/[^\d]/g,''); for(let i=0;i+15<=d.length;i++){ const w=d.slice(i,i+15); if(isImei(w)) found.add(w); } });
+    (text.match(/(?<![0-9])[0-9]{15}(?![0-9])/g)||[]).forEach(w=>{ if(isImei(w)) found.add(w); }); // solo números de 15 dígitos exactos (ignora el '/ 78' y el MEID)
     const sn=/S\s*\/?\s*N\s*[:.]?\s*([A-Z0-9]{6,20})/i.exec(text.replace(/[ \t]+/g,' ')); if(sn && !SC.serial){ addCode(sn[1].toUpperCase(),'Lectura de texto'); }
     let n=0; found.forEach(x=>{ if(addCode(x,'Lectura pantalla *#06#')) n++; });
     if(!SC.imeis.length && !SC.serial) st.textContent='No pude leer un IMEI ni un S/N. Toma la foto de frente, sin reflejo, y que se vean bien los números.'; else renderScan();
@@ -783,18 +792,20 @@ async function guardar(acc){
   const err=$('#rErr'); err.textContent='';
   const v=scanValues(), tipo=fv('rTipo');
   if(!v.imei && !v.serial){ err.textContent='Primero escanea el IMEI o el serial del equipo.'; return; }
-  if(acc==='alta' && tipo==='Celular' && !S.admin && !isImei(v.imei)){ err.textContent='Para registrar un celular necesitas escanear un IMEI válido (caja, sticker o pantalla *#06#).'; return; }
+  if(acc==='alta' && tipo==='Celular' && !S.admin && !/^\d{15}$/.test(v.imei)){ err.textContent='Para registrar un celular necesitas escanear el IMEI (caja, sticker o pantalla *#06#).'; return; }
   if(acc==='alta' && tipo==='Impresora' && !v.serial){ err.textContent='Para una impresora escanea el código de barras del serial.'; return; }
-  if(S.admin && v.imei && !isImei(v.imei)){ err.textContent='El IMEI no es válido (15 dígitos con dígito verificador).'; return; }
+  if(S.admin && v.imei && !/^\d{15}$/.test(v.imei)){ err.textContent='El IMEI debe tener 15 dígitos.'; return; }
+  const notaImei = [v.imei,v.imei2].filter(x=>x&&!isImei(x)).length ? 'IMEI reportado por el equipo no pasa el dígito verificador (posible IMEI alterado). ' : '';
   if(VERIF.res && VERIF.bloqueo){ err.textContent=VERIF.bloqueo.replace('Bloqueado: ','No se puede guardar: ')+'.'; $('#scVerif')?.scrollIntoView({block:'center'}); return; }
   if(!FOTOS.length){ err.textContent='La foto de evidencia es obligatoria. Toma al menos una foto del equipo.'; $('#evAdd')?.scrollIntoView({block:'center'}); return; }
-  const p={ accion:acc, tipo, cd:fv('rCd'), imei:v.imei, imei2:v.imei2, serial:v.serial, origen:v.origen };
+  const p={ accion:acc, tipo, cd:fv('rCd'), imei:v.imei, imei2:v.imei2, serial:esGenerico(v.serial)?'':v.serial, origen:v.origen };
   const acc_ = ACCES.filter((a,i)=>$('#rAcc'+i)?.checked);
   if(acc==='alta') Object.assign(p,{marca:fv('rMarca'),modelo:fv('rModelo'),linea:fv('rLinea'),operador_tel:fv('rOper'),accesorios:acc_,obs:fv('rObs')});
   if(acc==='asignacion'){ if(!fv('rPers')){ err.textContent='Indica a quién se entrega el equipo.'; return; }
     Object.assign(p,{asignado_a:fv('rPers'),cargo:fv('rCargo'),ruta:fv('rRuta'),placa:fv('rPlaca').toUpperCase(),fecha:fv('rFecha'),accesorios:acc_}); }
   if(acc==='devolucion') Object.assign(p,{estado:fv('rEst'),obs:fv('rObs')});
   if(acc==='inventario') Object.assign(p,{condicion:fv('rCond'),tiene:fv('rTiene'),ruta:fv('rRuta'),obs:fv('rObs')});
+  if(notaImei) p.obs = notaImei + (p.obs||'');
   if(acc==='novedad') Object.assign(p,{tipo_novedad:fv('rTnov'),fecha:fv('rFecha'),reportado_por:fv('rRep'),nuevo_estado:fv('rNest'),descripcion:fv('rDesc')});
   const b=$('#rBtn'); b.disabled=true; b.dataset.busy='1';
   const listo=()=>{ delete b.dataset.busy; b.disabled=false; b.textContent='Guardar'; updBloqueo(); };
@@ -998,7 +1009,9 @@ function cruceBase(per){
   const eqPorImei=new Map(); S.eq.forEach(e=>{ if(e.imei) eqPorImei.set(e.imei,e); if(e.imei2) eqPorImei.set(e.imei2,e); });
   const cAct=new Map(S.cnt.filter(c=>c.periodo===per).map(c=>[c.equipo_id,c]));
   const cPrev=new Set(S.cnt.filter(c=>c.periodo===prev).map(c=>c.equipo_id));
-  const base=(S.base||[]).map(b=>{ const e=eqPorImei.get(b.imei)||null; const c=e?cAct.get(e.id):null; return {b,e,c,prev:e?cPrev.has(e.id):false}; });
+  const dif1=(a,b)=>a&&b&&a.length===15&&b.length===15&&[...a].filter((ch,i)=>ch!==b[i]).length===1;
+  const cercano=imei=>S.eq.find(e=>dif1(e.imei,imei)||dif1(e.imei2,imei))||null;
+  const base=(S.base||[]).map(b=>{ let e=eqPorImei.get(b.imei)||null, aprox=false; if(!e){ e=cercano(b.imei); aprox=!!e; } const c=e?cAct.get(e.id):null; return {b,e,c,prev:e?cPrev.has(e.id):false,aprox}; });
   const enBase=new Set(base.filter(x=>x.e).map(x=>x.e.id));
   const fuera=S.eq.filter(e=>!enBase.has(e.id) && !['Dado de baja','Perdido'].includes(e.estado));
   return {base,fuera,cAct,cPrev,prev};
@@ -1019,7 +1032,7 @@ function renderInv(){
   const v=S.ventana; $('#invVentana').textContent = v ? (v.abierta?`Ventana abierta (día ${v.dia} de 5)`:'Ventana cerrada para operadores (abre del 1 al 5)') : '';
   // ---- un solo listado con estado por equipo ----
   const items=[];
-  base.filter(x=>byCd({cd:x.b.cd})).forEach(x=>items.push({imei:x.b.imei,b:x.b,e:x.e,c:x.c,prev:x.prev,
+  base.filter(x=>byCd({cd:x.b.cd})).forEach(x=>items.push({imei:x.b.imei,b:x.b,e:x.e,c:x.c,prev:x.prev,aprox:x.aprox,
     estado: !x.e ? 'sinreg' : (x.c ? 'contado' : 'pendiente'), otroCd: !!(x.e && x.e.cd!==x.b.cd)}));
   fuera.filter(byCd).forEach(e=>items.push({imei:e.imei||e.serial,b:null,e,c:cAct.get(e.id)||null,prev:false,estado:'fuera',otroCd:false}));
   const n=k=>items.filter(i=>i.estado===k).length;
@@ -1099,6 +1112,7 @@ function renderInv(){
     if(c) det=`<div class="t1" style="font-weight:500">${esc(c.condicion)}${c.tiene?' · lo tiene '+esc(c.tiene):''}</div><div class="t2">Contado ${esc(fmtTs(c.ts))} por ${esc(c.perfiles?.nombre||c.perfiles?.usuario||'—')}</div>`;
     else if(e) det=`<div class="t2">${e.estado==='Asignado'?'Asignado a <b>'+esc(e.asignado_a)+'</b>'+(e.ruta?' · ruta '+esc(e.ruta):''):esc(e.estado)}${i.prev?' · <span style="color:var(--bad)">estaba el mes anterior</span>':''}</div>`;
     if(i.b?.seguimiento) det+=`<div class="t2">Nota: ${esc(i.b.seguimiento)}</div>`;
+    if(i.aprox) det+=`<div class="t2" style="color:var(--warn)">El celular reporta IMEI <span class="mono">${esc([e.imei,e.imei2].find(x=>x&&x!==i.imei&&x.length===15&&[...x].filter((ch,k)=>ch!==i.imei[k]).length===1)||e.imei)}</span> (1 dígito distinto a la base)</div>`;
     if(i.b && !i.b.imei_valido) det+=`<div class="t2" style="color:var(--bad)">IMEI inválido en la base (revisar digitación)</div>`;
     const cd = i.b ? (i.otroCd ? `<div>Base: ${esc(i.b.cd)}</div><div style="color:var(--warn);font-weight:600">App: ${esc(e.cd)}</div>` : esc(i.b.cd)) : esc(e?.cd||'');
     return `<div class="row irow">
