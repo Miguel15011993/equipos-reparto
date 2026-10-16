@@ -148,6 +148,14 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 .fchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--fg)}
 .fchip b{font-variant-numeric:tabular-nums;margin-left:4px}
 .fchip.on{background:var(--navy);color:var(--navy-fg);border-color:var(--navy)}
+.valtbl th,.valtbl th.num{white-space:normal;vertical-align:bottom;line-height:1.25}
+.valtbl th.grp{text-align:center}
+.valtbl .sep{border-left:2px solid var(--line)}
+.valtbl tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+.valtbl td.ok{color:var(--ok)} .valtbl td.warn{color:var(--warn)} .valtbl td.bad{color:var(--bad)} .valtbl td.info{color:var(--info)}
+.hallaz{margin:12px 0 0;padding-left:20px;line-height:1.55}
+.row.vrow{grid-template-columns:170px minmax(180px,1.2fr) minmax(240px,2fr) 200px}
+@media (max-width:760px){.row.vrow{grid-template-columns:1fr;gap:4px}}
 .row.irow{grid-template-columns:190px minmax(170px,1.1fr) 130px minmax(220px,2fr) 190px}
 .row.irow .acts{justify-content:flex-end}
 @media (max-width:760px){.row.irow{grid-template-columns:1fr;gap:4px}.row.irow .acts{justify-content:flex-start}}
@@ -240,6 +248,7 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
     <div class="tabs" id="adminTabs" hidden role="tablist">
       <button class="tab" data-tab="reg" aria-selected="true">Registrar</button>
       <button class="tab" data-tab="inv" aria-selected="false">Inventario <span class="pill p-Abierta" id="solBadge" hidden></span></button>
+      <button class="tab" data-tab="val" aria-selected="false">Validación base</button>
       <button class="tab" data-tab="ana" aria-selected="false">Análisis</button>
       <button class="tab" data-tab="eq" aria-selected="false">Equipos</button>
       <button class="tab" data-tab="nov" aria-selected="false">Novedades</button>
@@ -294,6 +303,13 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
       <div class="fchips" id="invChips"></div>
       <div class="toolbar" style="margin-top:8px"><input type="search" id="invQ" placeholder="Buscar IMEI, serial, persona, ruta o nota"></div>
       <div class="list" id="invList"></div>
+    </section>
+    <section id="pVal" hidden>
+      <div class="toolbar">
+        <input type="search" id="valQ" placeholder="Buscar IMEI, marca, ciudad o persona">
+        <button class="btn" id="valExport" type="button">Exportar validación (Excel)</button>
+      </div>
+      <div id="valBody"></div>
     </section>
     <section id="pAna" hidden>
       <div class="toolbar">
@@ -979,6 +995,93 @@ function barrasH(el,items){
   bindTips(el.querySelector('svg'));
 }
 
+// ===================== VALIDACIÓN: BASE CORPORATIVA vs REGISTRO REAL =====================
+const VAL={filtro:'otra'};
+const CDS=['Villavicencio','Yopal'];
+function cruceValidacion(){
+  const dif1=(a,b)=>a&&b&&a.length===15&&b.length===15&&[...a].filter((ch,i)=>ch!==b[i]).length===1;
+  const eqIdx=new Map(); S.eq.forEach(e=>{ if(e.imei) eqIdx.set(e.imei,e); if(e.imei2) eqIdx.set(e.imei2,e); });
+  const pend=S.sol.filter(x=>x.estado==='Pendiente');
+  const solIdx=new Map(); pend.forEach(x=>{ if(x.imei) solIdx.set(x.imei,x); if(x.imei2) solIdx.set(x.imei2,x); });
+  const usadosE=new Set(), usadosS=new Set();
+  const filas=(S.base||[]).map(b=>{
+    let e=eqIdx.get(b.imei)||null, s=null, aprox=false;
+    if(!e) s=solIdx.get(b.imei)||null;
+    if(!e && !s){ e=S.eq.find(x=>dif1(x.imei,b.imei)||dif1(x.imei2,b.imei))||null; if(!e) s=pend.find(x=>dif1(x.imei,b.imei)||dif1(x.imei2,b.imei))||null; aprox=!!(e||s); }
+    if(e) usadosE.add(e.id); if(s) usadosS.add(s.id);
+    const loc = e ? e.cd : s ? s.cd : null;
+    const estado = !loc ? 'noenc' : (loc===b.cd ? 'ok' : 'otra');
+    const marca = e ? ([e.marca,e.modelo].filter(Boolean).join(' ')||b.fabricante) : s ? ([s.marca,s.modelo].filter(Boolean).join(' ')||b.fabricante) : b.fabricante;
+    return {imei:b.imei, marca:marca||'—', baseCd:b.cd, loc, estado, fuente: e?'Registrado en la app':s?'Reportado · pendiente de autorizar':'', aprox,
+            quien: e ? (e.asignado_a||'') : (s?.payload?.tiene||''), fecha: s?.creado || e?.creado || '', reporto: s?.reg?.nombre||s?.reg?.usuario||'', e, s, b};
+  });
+  // celulares encontrados que no están en la base
+  const fuera=[]
+    .concat(S.eq.filter(e=>e.tipo==='Celular' && !usadosE.has(e.id)).map(e=>({imei:e.imei||e.serial, marca:[e.marca,e.modelo].filter(Boolean).join(' ')||'—', baseCd:null, loc:e.cd, estado:'fuera', fuente:'Registrado en la app', quien:e.asignado_a||'', fecha:e.creado, e})))
+    .concat(pend.filter(x=>x.tipo==='Celular' && !usadosS.has(x.id)).map(x=>({imei:x.imei||x.serial, marca:[x.marca,x.modelo].filter(Boolean).join(' ')||'—', baseCd:null, loc:x.cd, estado:'fuera', fuente:'Reportado · pendiente de autorizar', quien:x.payload?.tiene||'', fecha:x.creado, reporto:x.reg?.nombre||x.reg?.usuario||'', s:x})));
+  const impresoras = CDS.map(cd=>({cd, app:S.eq.filter(e=>e.tipo==='Impresora'&&e.cd===cd).length, pend:pend.filter(x=>x.tipo==='Impresora'&&x.cd===cd).length}));
+  return {filas, fuera, impresoras};
+}
+function renderVal(){
+  const box=$('#valBody'); if(!box) return;
+  if(!S.base?.length){ box.innerHTML='<div class="card empty">No hay base corporativa cargada. Súbela desde la pestaña Inventario → "Actualizar base corporativa".</div>'; return; }
+  const {filas,fuera,impresoras}=cruceValidacion();
+  const cuenta=(cd,f)=>filas.filter(x=>x.baseCd===cd&&f(x)).length;
+  const resumen=CDS.map(cd=>{ const base=cuenta(cd,()=>true), ok=cuenta(cd,x=>x.estado==='ok'), otra=cuenta(cd,x=>x.estado==='otra'), no=cuenta(cd,x=>x.estado==='noenc');
+    const llegan=filas.filter(x=>x.estado==='otra'&&x.loc===cd).length, fueraCd=fuera.filter(x=>x.loc===cd).length;
+    const encontradosAqui=ok+llegan+fueraCd;
+    return {cd,base,ok,otra,no,llegan,fueraCd,encontradosAqui,pct:base?Math.round((ok+otra)*100/base):0}; });
+  const T=k=>resumen.reduce((a,r)=>a+r[k],0);
+  const pend=filas.filter(x=>x.s).length+fuera.filter(x=>x.s).length;
+  const row=(r,tot)=>`<tr${tot?' class="tot"':''}><td><b>${esc(r.cd)}</b></td><td class="num">${r.base}</td><td class="num ok">${r.ok}</td><td class="num warn">${r.otra}</td><td class="num bad">${r.no}</td><td class="num">${r.pct}%</td>
+    <td class="sep num">${r.encontradosAqui}</td><td class="num warn">${r.llegan}</td><td class="num info">${r.fueraCd}</td><td class="num">${r.encontradosAqui - r.base>0?'+':''}${r.encontradosAqui - r.base}</td></tr>`;
+  const tot={cd:'Total',base:T('base'),ok:T('ok'),otra:T('otra'),no:T('no'),llegan:T('llegan'),fueraCd:T('fueraCd'),encontradosAqui:T('encontradosAqui')}; tot.pct=tot.base?Math.round((tot.ok+tot.otra)*100/tot.base):0;
+  // frases de hallazgos
+  const H=[];
+  resumen.forEach(r=>{ if(r.otra) H.push(`<b>${r.otra}</b> celular${r.otra>1?'es':''} de la base de <b>${esc(r.cd)}</b> se está${r.otra>1?'n':''} registrando en <b>${esc(CDS.find(c=>c!==r.cd))}</b>.`); });
+  resumen.forEach(r=>{ if(r.no) H.push(`<b>${r.no}</b> celular${r.no>1?'es':''} de la base de <b>${esc(r.cd)}</b> no ${r.no>1?'han':'ha'} aparecido en ningún registro.`); });
+  resumen.forEach(r=>{ if(r.fueraCd) H.push(`<b>${r.fueraCd}</b> celular${r.fueraCd>1?'es':''} registrado${r.fueraCd>1?'s':''} en <b>${esc(r.cd)}</b> no ${r.fueraCd>1?'están':'está'} en la base corporativa.`); });
+  if(pend) H.push(`<b>${pend}</b> de estos equipos están reportados pero <b>pendientes de tu autorización</b> (pestaña Inventario).`);
+  const aprox=filas.filter(x=>x.aprox).length; if(aprox) H.push(`<b>${aprox}</b> coinciden con la base con <b>1 dígito distinto</b> en el IMEI (posible IMEI alterado).`);
+  // filtros
+  const lista={ otra:filas.filter(x=>x.estado==='otra'), noenc:filas.filter(x=>x.estado==='noenc'), fuera, ok:filas.filter(x=>x.estado==='ok'), todos:filas.concat(fuera) };
+  const F=[['otra','Registrados en otra ciudad'],['noenc','No encontrados'],['fuera','No están en la base'],['ok','En su ciudad'],['todos','Todos']];
+  const q=fv('valQ').toLowerCase();
+  const sel=(lista[VAL.filtro]||[]).filter(x=>byCd({cd:x.baseCd||x.loc})||byCd({cd:x.loc})).filter(x=>!q||[x.imei,x.marca,x.baseCd,x.loc,x.quien,x.reporto].join(' ').toLowerCase().includes(q));
+  const etiqueta={ok:['p-Disponible','En su ciudad'],otra:['p-proc','Otra ciudad'],noenc:['p-Abierta','No encontrado'],fuera:['p-Asignado','No está en la base']};
+  const frase=x=> x.estado==='otra' ? `En la base de <b>${esc(x.baseCd)}</b> · se está registrando en <b>${esc(x.loc)}</b>`
+    : x.estado==='noenc' ? `En la base de <b>${esc(x.baseCd)}</b> · no ha aparecido en ningún registro`
+    : x.estado==='fuera' ? `No está en la base · se registró en <b>${esc(x.loc)}</b>`
+    : `En la base de <b>${esc(x.baseCd)}</b> · registrado en <b>${esc(x.loc)}</b>`;
+  box.innerHTML=`
+    <div class="card"><h2 style="font-size:22px">Celulares por ciudad: base corporativa vs registro real</h2>
+      <div class="t2" style="margin-bottom:10px">"Encontrado" = registrado en la app o reportado por un operador (aunque esté pendiente de tu autorización). Se compara contra la ciudad que dice la base.</div>
+      <div class="tablewrap"><table class="tbl valtbl">
+        <thead><tr><th rowspan="2">Ciudad</th><th colspan="5" class="grp">Según la base corporativa</th><th colspan="4" class="grp sep">Lo que se encontró en la ciudad</th></tr>
+        <tr><th class="num">En base</th><th class="num">En su ciudad</th><th class="num">En otra ciudad</th><th class="num">No encontrados</th><th class="num">% hallado</th>
+            <th class="num sep">Total hallado</th><th class="num">Vienen de la otra ciudad</th><th class="num">No están en la base</th><th class="num">Diferencia vs base</th></tr></thead>
+        <tbody>${resumen.map(r=>row(r)).join('')}${row(tot,true)}</tbody></table></div>
+      ${H.length?`<ul class="hallaz">${H.map(h=>`<li>${h}</li>`).join('')}</ul>`:''}
+      <div class="t2">Impresoras (no están en la base, se controlan por S/N): ${impresoras.map(i=>`${esc(i.cd)} ${i.app+i.pend}${i.pend?` (${i.pend} pendientes de autorizar)`:''}`).join(' · ')}</div>
+    </div>
+    <div class="fchips">${F.map(([k,t])=>`<button type="button" class="fchip ${VAL.filtro===k?'on':''}" data-valf="${k}">${esc(t)} <b>${lista[k].length}</b></button>`).join('')}</div>
+    <div class="list" style="margin-top:12px">${sel.length?`<div class="row head vrow"><span>Resultado</span><span>Equipo</span><span>Ubicación</span><span>Fuente</span></div>`+sel.map(x=>`<div class="row vrow">
+      <div><span class="pill ${etiqueta[x.estado][0]}">${etiqueta[x.estado][1]}</span></div>
+      <div><div class="t1">${esc(x.marca)}</div><div class="mono t2">IMEI ${esc(x.imei)}</div>${x.aprox?'<div class="t2" style="color:var(--warn)">El celular reporta un IMEI con 1 dígito distinto</div>':''}</div>
+      <div><div>${frase(x)}</div>${x.quien?`<div class="t2">Lo tiene: ${esc(x.quien)}</div>`:''}</div>
+      <div class="t2">${esc(x.fuente||'—')}${x.reporto?`<br>Reportó ${esc(x.reporto)}`:''}${x.fecha?`<br>${esc(fmtTs(x.fecha))}`:''}</div></div>`).join(''):'<div class="empty">No hay equipos en este filtro.</div>'}</div>`;
+}
+function exportarVal(){
+  const {filas,fuera}=cruceValidacion();
+  const est={ok:'En su ciudad',otra:'Registrado en otra ciudad',noenc:'No encontrado',fuera:'No está en la base'};
+  const rows=filas.concat(fuera).map(x=>({Resultado:est[x.estado],IMEI:x.imei,Marca:x.marca,'Ciudad en la base':x.baseCd||'NO ESTÁ EN LA BASE','Ciudad donde se registró':x.loc||'—',Fuente:x.fuente,'Lo tiene':x.quien||'','Reportó':x.reporto||'',Fecha:x.fecha?fmtTs(x.fecha):'','IMEI con 1 dígito distinto':x.aprox?'Sí':''}));
+  const res=CDS.map(cd=>{ const f=filas.filter(x=>x.baseCd===cd); return {Ciudad:cd,'En base':f.length,'En su ciudad':f.filter(x=>x.estado==='ok').length,'En otra ciudad':f.filter(x=>x.estado==='otra').length,'No encontrados':f.filter(x=>x.estado==='noenc').length,'Vienen de la otra ciudad':filas.filter(x=>x.estado==='otra'&&x.loc===cd).length,'No están en la base':fuera.filter(x=>x.loc===cd).length}; });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(res),'Resumen por ciudad');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Detalle');
+  XLSX.writeFile(wb,`validacion_base_${today()}.xlsx`);
+}
+
 // ===================== ADMINISTRADOR =====================
 const byCd = r => !S.cd || r.cd===S.cd;
 async function loadAll(){
@@ -1001,7 +1104,7 @@ async function loadInv(){
     sb.from('base_corporativa').select('*').order('cd').order('imei').limit(5000)
   ]);
   if(so.error||co.error||ba.error){ toast('No se pudo cargar el inventario: '+(so.error||co.error||ba.error).message); return; }
-  S.sol=so.data; S.cnt=co.data; S.base=ba.data; renderInv();
+  S.sol=so.data; S.cnt=co.data; S.base=ba.data; renderInv(); renderVal();
 }
 // Cruce base corporativa ↔ equipos registrados ↔ conteos del mes
 function cruceBase(per){
@@ -1333,6 +1436,7 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.uact){ const u=S.usr.find(x=>x.id===t.dataset.uact); await sb.from('perfiles').update({activo:!u.activo, rol:u.rol==='pendiente'?'operador':u.rol}).eq('id',u.id); loadAll(); }
   if(t.dataset.urol){ const u=S.usr.find(x=>x.id===t.dataset.urol); await sb.from('perfiles').update({rol:u.rol==='admin'?'operador':'admin'}).eq('id',u.id); loadAll(); }
   if(t.dataset.upass){ const u=S.usr.find(x=>x.id===t.dataset.upass); cambiarClave(u); }
+  if(t.dataset.valf){ VAL.filtro=t.dataset.valf; renderVal(); }
   if(t.dataset.invf){ INV.filtro=t.dataset.invf; renderInv(); $('#invChips').scrollIntoView({block:'start',behavior:'smooth'}); }
   if(t.dataset.nota){ notaBase(t.dataset.nota); }
   if(t.dataset.solok){ resolverSol(t.dataset.solok,true); }
@@ -1341,8 +1445,9 @@ document.addEventListener('click',async ev=>{
 });
 document.querySelectorAll('#adminTabs .tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('#adminTabs .tab').forEach(x=>x.setAttribute('aria-selected',x===t));
-  const m={reg:'#pReg',inv:'#pInv',ana:'#pAna',eq:'#pEq',nov:'#pNov',his:'#pHis',usr:'#pUsr'}; Object.entries(m).forEach(([k,s])=>$(s).hidden=k!==t.dataset.tab);
+  const m={reg:'#pReg',inv:'#pInv',val:'#pVal',ana:'#pAna',eq:'#pEq',nov:'#pNov',his:'#pHis',usr:'#pUsr'}; Object.entries(m).forEach(([k,s])=>$(s).hidden=k!==t.dataset.tab);
   if(t.dataset.tab==='ana') renderAna();
+  if(t.dataset.tab==='val') renderVal();
   if(t.dataset.tab!=='reg') stopCam();
 });
 $('#cdSeg').addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(!b) return; S.cd=b.dataset.cd; $('#cdSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderAdmin(); renderInv(); });
@@ -1350,6 +1455,8 @@ $('#cdSeg').addEventListener('click',ev=>{ const b=ev.target.closest('button'); 
 $('#btnReload').onclick=loadAll;
 $('#invPer').addEventListener('change',loadInv);
 ['anaPer','anaTipo'].forEach(id=>$('#'+id).addEventListener('change',renderAna));
+$('#valQ').oninput=()=>renderVal();
+$('#valExport').onclick=()=>exportarVal();
 $('#anaEjemplo').onclick=()=>{ ANA.ejemplo=!ANA.ejemplo; renderAna(); };
 let anaRT=null, anaW=innerWidth; addEventListener('resize',()=>{ if(innerWidth===anaW) return; anaW=innerWidth; clearTimeout(anaRT); anaRT=setTimeout(()=>{ if(!$('#pAna').hidden) renderAna(); },200); });
 $('#invQ').addEventListener('input',renderInv);
