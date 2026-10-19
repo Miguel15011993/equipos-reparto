@@ -365,6 +365,12 @@ const pill = e => `<span class="pill ${pillCls(e)}">${esc(e)}</span>`;
 
 if(!/^https:\/\//.test(CONFIG.SUPABASE_URL) || CONFIG.SUPABASE_KEY.startsWith('PEGA')){ $('#vConfig').hidden=false; return; }
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+// Reintento automático cuando la conexión falla antes de llegar al servidor ("Failed to fetch")
+{ const rpc0=sb.rpc.bind(sb); const esRed=e=>/failed to fetch|networkerror|load failed|network request failed/i.test(e?.message||e?.details||String(e||''));
+  sb.rpc=async(fn,args,opt)=>{ let r;
+    for(let i=0;i<3;i++){ try{ r=await rpc0(fn,args,opt); }catch(e){ r={data:null,error:e}; }
+      if(!r.error||!esRed(r.error)) return r; await new Promise(ok=>setTimeout(ok,800*(i+1))); }
+    return {data:null,error:{message:'No hubo conexión con el servidor (se intentó 3 veces). Revisa el internet o la red de la empresa y vuelve a intentar.'}}; }; }
 const S = { me:null, perfil:null, admin:false, cd:'', eq:[], nov:[], mov:[], usr:[], sesion:[], sol:[], cnt:[], base:[], ventana:null };
 const mesActual = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const mesPrev = per => { const [y,m]=per.split('-').map(Number); const d=new Date(y,m-2,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
@@ -1279,7 +1285,9 @@ function resolverSol(id, aprobar){
     <div class="err" id="solErr"></div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn ${aprobar?'primary':'danger'}" type="submit">${aprobar?'Autorizar y agregar al inventario':'Rechazar'}</button></div></form>`,
   close=>$('#fSol').addEventListener('submit',async ev=>{ ev.preventDefault();
     if(!aprobar && !fv('solMot')){ $('#solErr').textContent='Escribe el motivo del rechazo.'; return; }
+    const bt=ev.target.querySelector('button[type=submit]'); bt.disabled=true; $('#solErr').textContent='';
     const {data,error}=await sb.rpc('resolver_solicitud',{p_id:id,p_aprobar:aprobar,p_motivo:fv('solMot')});
+    bt.disabled=false;
     if(error){ $('#solErr').textContent=error.message; return; }
     close(); toast(data); loadAll(); }));
 }
