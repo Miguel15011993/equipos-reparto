@@ -156,6 +156,8 @@ h2{font-family:var(--f-display);font-size:26px;margin:0 0 4px;line-height:1.1}
 .hallaz{margin:12px 0 0;padding-left:20px;line-height:1.55}
 .row.vrow{grid-template-columns:170px minmax(180px,1.2fr) minmax(240px,2fr) 200px}
 @media (max-width:760px){.row.vrow{grid-template-columns:1fr;gap:4px}}
+.row.mrow{grid-template-columns:120px minmax(170px,1.3fr) minmax(170px,1.2fr) minmax(150px,1fr) 190px}
+@media (max-width:760px){.row.mrow{grid-template-columns:1fr;gap:3px}.row.mrow.head{display:none}}
 .row.irow{grid-template-columns:190px minmax(170px,1.1fr) 130px minmax(220px,2fr) 190px}
 .row.irow .acts{justify-content:flex-end}
 @media (max-width:760px){.row.irow{grid-template-columns:1fr;gap:4px}.row.irow .acts{justify-content:flex-start}}
@@ -268,10 +270,20 @@ button.kpi.on{outline:2px solid var(--info);outline-offset:-1px}
           <button class="accion" data-acc="asignacion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h12M12 6l6 6-6 6"/><path d="M20 4v16"/></svg></span><span><b>Entregar equipo</b><span class="t2">Asignar a conductor o auxiliar</span></span></button>
           <button class="accion" data-acc="devolucion"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12H8M12 6l-6 6 6 6"/><path d="M4 4v16"/></svg></span><span><b>Recibir equipo</b><span class="t2">Devolución al cierre</span></span></button>
           <button class="accion" data-acc="novedad"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></span><span><b>Reportar novedad</b><span class="t2">Daño, pérdida o falla</span></span></button>
+          <button class="accion" id="misCard" type="button"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2.5"/></svg></span><span><b>Mis registros</b><span class="t2">Ver lo que has registrado mes a mes</span></span></button>
         </div>
         <div class="sesion" id="sesion" hidden><div class="lbl">Registros de esta sesión</div><div id="sesionList"></div></div>
       </div>
       <div id="regForm" hidden></div>
+      <div id="misView" hidden>
+        <div class="toolbar"><button class="btn" id="misBack" type="button">← Volver</button><h2 style="margin:0;font-size:22px;flex:1">Mis registros</h2><button class="btn" id="misRefresh" type="button">Actualizar</button></div>
+        <p class="t2" style="margin:-4px 0 6px">Solo lectura: aquí ves lo que tú registraste. Para corregir algo, avísale al administrador.</p>
+        <div class="fchips" id="misMeses"></div>
+        <div class="kpis" id="misKpis"></div>
+        <div class="fchips" id="misChips" style="margin-top:6px"></div>
+        <div class="toolbar" style="margin-top:8px"><input type="search" id="misQ" placeholder="Buscar IMEI, serial o marca"></div>
+        <div class="card" style="padding:0;overflow:hidden"><div class="list" id="misList"></div></div>
+      </div>
     </section>
 
     <section id="pEq" hidden>
@@ -809,7 +821,7 @@ function openForm(acc){
 }
 function closeForm(fromPop){
   try{ stopCam(); }catch{}
-  SC=null; ACC=null; FOTOS.forEach(f=>URL.revokeObjectURL(f.url)); FOTOS=[]; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false;
+  MIS.datos=null; SC=null; ACC=null; FOTOS.forEach(f=>URL.revokeObjectURL(f.url)); FOTOS=[]; $('#regForm').hidden=true; $('#regForm').innerHTML=''; $('#regHome').hidden=false;
   if(fromPop!==true && history.state?.form) history.back();
 }
 window.addEventListener('popstate',()=>{ if(!$('#regForm').hidden) closeForm(true); });
@@ -1091,6 +1103,47 @@ function exportarVal(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Detalle');
   XLSX.writeFile(wb,`validacion_base_${today()}.xlsx`);
 }
+
+
+// ===================== MIS REGISTROS (operador, solo lectura) =====================
+const MIS={datos:null,mes:null,filtro:'todos'};
+async function abrirMis(){
+  $('#regHome').hidden=true; $('#regForm').hidden=true; $('#misView').hidden=false; scrollTo(0,0);
+  if(!MIS.datos) await cargarMis(); else renderMis();
+}
+function cerrarMis(){ $('#misView').hidden=true; $('#regHome').hidden=false; }
+async function cargarMis(){
+  $('#misList').innerHTML='<div class="empty">Cargando…</div>';
+  const {data,error}=await sb.rpc('mis_registros');
+  if(error){ $('#misList').innerHTML=`<div class="empty">No se pudo cargar: ${esc(error.message)}</div>`; return; }
+  MIS.datos=data||[]; const meses=[...new Set(MIS.datos.map(x=>x.periodo))].sort().reverse();
+  if(!MIS.mes||!meses.includes(MIS.mes)) MIS.mes=meses[0]||mesActual();
+  renderMis();
+}
+const MIS_EST={'Pendiente de autorización':'p-proc','Autorizado':'p-Disponible','Rechazado':'p-Abierta','Registrado':'p-Asignado'};
+function renderMis(){
+  const D=MIS.datos||[]; const meses=[...new Set(D.map(x=>x.periodo))].sort().reverse();
+  $('#misMeses').innerHTML = meses.length ? meses.map(m=>`<button class="fchip${m===MIS.mes?' on':''}" data-mismes="${m}">${esc(nombreMes(m))}<b>${D.filter(x=>x.periodo===m).length}</b></button>`).join('') : '';
+  const M=D.filter(x=>x.periodo===MIS.mes);
+  const n=f=>M.filter(f).length;
+  $('#misKpis').innerHTML=[['Celulares',n(x=>x.tipo==='Celular'),''],['Impresoras',n(x=>x.tipo==='Impresora'),''],['Pendientes de autorizar',n(x=>x.estado==='Pendiente de autorización'),'warn'],['Autorizados',n(x=>x.estado==='Autorizado'),'ok'],['Rechazados',n(x=>x.estado==='Rechazado'),n(x=>x.estado==='Rechazado')?'alert':''],['En el inventario del mes',n(x=>x.en_inventario),'ok']]
+    .map(([l,v,k])=>`<div class="kpi ${k}"><div class="n">${v}</div><div class="l">${l}</div></div>`).join('');
+  const F=[['todos','Todo',M.length],['Celular','Celulares',n(x=>x.tipo==='Celular')],['Impresora','Impresoras',n(x=>x.tipo==='Impresora')],['pend','Pendientes',n(x=>x.estado==='Pendiente de autorización')],['rech','Rechazados',n(x=>x.estado==='Rechazado')]];
+  $('#misChips').innerHTML=F.map(([k,t,c])=>`<button class="fchip${MIS.filtro===k?' on':''}" data-misf="${k}">${t}<b>${c}</b></button>`).join('');
+  const q=fv('misQ').toLowerCase();
+  const rows=M.filter(x=> MIS.filtro==='todos'||x.tipo===MIS.filtro||(MIS.filtro==='pend'&&x.estado==='Pendiente de autorización')||(MIS.filtro==='rech'&&x.estado==='Rechazado'))
+    .filter(x=>!q||[x.imei,x.imei2,x.serial,x.marca,x.modelo,x.accion].join(' ').toLowerCase().includes(q));
+  $('#misList').innerHTML = !rows.length ? `<div class="empty">${M.length?'Nada en este filtro.':'No tienes registros en este mes.'}</div>` :
+    `<div class="row mrow head"><div class="lbl">Fecha</div><div class="lbl">Equipo</div><div class="lbl">Identificación</div><div class="lbl">Qué registraste</div><div class="lbl">Estado</div></div>`+
+    rows.map(x=>`<div class="row mrow">
+      <div><div class="mono">${esc(fmtTs(x.fecha))}</div><div class="cdtag">${esc(x.cd||'')}</div></div>
+      <div><div class="t1">${esc(x.tipo||'')} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin marca')}</div></div>
+      <div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?'<br>IMEI 2 '+esc(x.imei2):''}${x.serial?'<br>S/N '+esc(x.serial):''}</div>
+      <div><div>${esc(x.accion)}</div>${x.nota&&x.estado==='Rechazado'?`<div class="t2" style="color:var(--bad)">Motivo: ${esc(x.nota)}</div>`:''}<div class="t2">${x.nfotos?`${x.nfotos} foto${x.nfotos>1?'s':''}`:'Sin foto'}</div></div>
+      <div><span class="pill ${MIS_EST[x.estado]||''}">${esc(x.estado)}</span>${x.en_inventario?'<div class="t2" style="color:var(--ok);margin-top:4px">✓ En inventario del mes</div>':''}</div>
+    </div>`).join('');
+}
+$('#misCard').onclick=abrirMis; $('#misBack').onclick=cerrarMis; $('#misRefresh').onclick=cargarMis; $('#misQ').oninput=renderMis;
 
 // ===================== ADMINISTRADOR =====================
 const byCd = r => !S.cd || r.cd===S.cd;
@@ -1484,6 +1537,8 @@ document.addEventListener('click',async ev=>{
     if(f==='nov'){ $('[data-tab="nov"]').click(); return; }
     const [ft,fe]=f.split('|'); $('#fTipo').value=ft||''; $('#fEstado').value=fe||''; $('#q').value=''; renderAdmin();
     $('#listEq').scrollIntoView({block:'start',behavior:'smooth'}); return; }
+  if(t.dataset.mismes){ MIS.mes=t.dataset.mismes; MIS.filtro='todos'; renderMis(); return; }
+  if(t.dataset.misf){ MIS.filtro=t.dataset.misf; renderMis(); return; }
   if(t.dataset.contar){ marcarContado(t.dataset.contar); return; }
   if(t.dataset.valf){ VAL.filtro=t.dataset.valf; renderVal(); }
   if(t.dataset.invf){ INV.filtro=t.dataset.invf; renderInv(); $('#invChips').scrollIntoView({block:'start',behavior:'smooth'}); }
