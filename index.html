@@ -302,6 +302,7 @@ button.kpi.on{outline:2px solid var(--info);outline-offset:-1px}
       </div>
       <div class="t2" id="baseInfo" style="margin:-6px 0 12px"></div>
       <div class="card resumen" id="invResumen"></div>
+      <div class="card aviso" id="pasarBox" style="margin-top:16px" hidden></div>
       <div class="card" id="solBox" style="margin-top:16px" hidden></div>
       <div class="fchips" id="invChips"></div>
       <div class="toolbar" style="margin-top:8px"><input type="search" id="invQ" placeholder="Buscar IMEI, serial, persona, ruta o nota"></div>
@@ -1180,7 +1181,7 @@ function renderInv(){
   const etiquetaBase=x=>{ const b=baseIdx.get(x.imei)||baseIdx.get(x.imei2); return b ? `<span class="pill p-Disponible">En base: ${esc(b.cd)}</span>${b.cd!==x.cd?` <span class="pill p-proc">reportado en ${esc(x.cd)}</span>`:''}` : '<span class="pill p-Abierta">No está en la base</span>'; };
   $('#solBox').hidden=!pendSol.length;
   $('#solBox').innerHTML = !pendSol.length ? '' : `<div class="vizhead"><div><h2 style="font-size:22px">${pendSol.length} equipo${pendSol.length>1?'s':''} nuevo${pendSol.length>1?'s':''} por autorizar</h2><div class="t2">Los operadores los escanearon y no estaban registrados. Solo entran cuando tú los autorizas.</div></div>
-      ${pendBase.length?`<button class="btn primary" id="solBaseAll">${pendBase.length===1?'Autorizar el que está en la base':`Autorizar los ${pendBase.length} que están en la base`}</button>`:''}</div>
+      <div class="acts">${pendBase.length?`<button class="btn primary" id="solBaseAll">${pendBase.length===1?'Autorizar el que está en la base':`Autorizar los ${pendBase.length} que están en la base`}</button>`:''}${pendSol.length>pendBase.length?`<button class="btn" id="solTodos">Autorizar todos (${pendSol.length})</button>`:''}</div></div>
     <div class="list" style="margin-top:10px">${pendSol.map(x=>`<div class="row nrow">
       <div><div class="mono">${esc(fmtTs(x.creado))}</div><div class="cdtag">${esc(x.cd)}</div></div>
       <div><div class="t1">${esc(x.tipo)} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin modelo')}</div><div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?' / '+esc(x.imei2):''}${x.serial?' · S/N '+esc(x.serial):''}</div></div>
@@ -1188,6 +1189,14 @@ function renderInv(){
       <div>${etiquetaBase(x)}</div>
       <div class="acts">${x.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(x.fotos))}">Fotos (${x.fotos.length})</button>`:''}<button class="btn sm primary" data-solok="${x.id}">Autorizar</button><button class="btn sm danger" data-solno="${x.id}">Rechazar</button></div></div>`).join('')}</div>`;
   $('#solBaseAll')?.addEventListener('click',autorizarBase);
+  $('#solTodos')?.addEventListener('click',()=>autorizarTodos(pendSol.length));
+  // ---- equipos registrados en la app que todavía no están contados en el inventario del mes ----
+  const sinContar=S.eq.filter(byCd).filter(e=>!cAct.has(e.id) && !['Dado de baja','Perdido'].includes(e.estado));
+  const pb=$('#pasarBox'); pb.hidden=!sinContar.length;
+  pb.innerHTML = !sinContar.length ? '' : `<div class="vizhead"><div><h2 style="font-size:22px">${sinContar.length} equipo${sinContar.length>1?'s':''} registrado${sinContar.length>1?'s':''} que no ${sinContar.length>1?'están':'está'} en el inventario de ${esc(nombreMes(per))}</h2>
+    <div class="t2">Se escanearon (alta o autorización) pero no quedaron como conteo del mes. Pásalos al inventario para que cuenten como vistos; el próximo mes se comparan contra estos mismos IMEI.</div></div>
+    <div class="acts"><button class="btn primary" id="pasarBtn">Pasar al inventario de ${esc(nombreMes(per))}</button></div></div>`;
+  $('#pasarBtn')?.addEventListener('click',()=>pasarAInventario(per));
   // ---- filtros con conteo ----
   const resueltas=S.sol.filter(x=>x.estado!=='Pendiente'&&byCd(x));
   const FILTROS=[['pendientes','Por revisar',pend+sinreg],['todos','Todos',items.length],['contados','Contados',contados],['registrados','Registrados sin contar',pend],['sinreg','Sin registrar',sinreg],['fuera','Fuera de la base',fueraN],['otrocd','CD distinto',otroCd],['traslados','Traslados',trasAll.length],['resueltas','Solicitudes resueltas',resueltas.length]];
@@ -1232,7 +1241,7 @@ function renderInv(){
       <div><div class="mono t1">${esc(i.imei)}</div><div class="t2">${esc(modelo)}${e?.serial?' · S/N '+esc(e.serial):''}</div></div>
       <div class="t2">${cd}</div>
       <div>${det||'<span class="t2">—</span>'}</div>
-      <div class="acts">${c?.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos</button>`:''}${e?`<button class="btn sm" data-edit="${e.id}">Ver</button>`:''}${i.b?`<button class="btn sm" data-nota="${esc(i.b.imei)}">${i.b.seguimiento?'Nota':'+ Nota'}</button>`:''}</div></div>`;
+      <div class="acts">${c?.fotos?.length?`<button class="btn sm" data-fotos="${esc(JSON.stringify(c.fotos))}">Fotos</button>`:''}${e?`<button class="btn sm" data-edit="${e.id}">Ver</button>`:''}${e&&!c?`<button class="btn sm primary" data-contar="${e.id}">Marcar contado</button>`:''}${i.b?`<button class="btn sm" data-nota="${esc(i.b.imei)}">${i.b.seguimiento?'Nota':'+ Nota'}</button>`:''}</div></div>`;
   }).join('');
 }
 function notaBase(imei){
@@ -1244,6 +1253,29 @@ function notaBase(imei){
     const {error}=await sb.from('base_corporativa').update({seguimiento:fv('notaTx'),seguimiento_ts:new Date().toISOString()}).eq('imei',imei);
     if(error){ $('#notaErr').textContent=error.message; return; }
     close(); toast('Nota guardada'); loadInv(); }));
+}
+async function pasarAInventario(per){
+  const b=$('#pasarBtn'); b.disabled=true; b.textContent='Pasando…';
+  const {data,error}=await sb.rpc('pasar_registros_a_inventario',{p_periodo:per});
+  if(error){ toast(error.message); b.disabled=false; b.textContent='Reintentar'; return; }
+  toast(data); loadAll();
+}
+async function marcarContado(id){
+  const e=S.eq.find(x=>x.id===id); const per=$('#invPer').value||mesActual();
+  modal(`<h2>Marcar como contado</h2><div class="t2" style="margin-bottom:12px">${esc([e?.marca,e?.modelo].filter(Boolean).join(' '))} · ${e?.imei?'IMEI '+esc(e.imei):'S/N '+esc(e?.serial||'')} · ${esc(e?.cd||'')} · ${esc(nombreMes(per))}</div>
+    <form id="fCnt"><div class="field"><label for="cntObs">Observación (opcional)</label><textarea id="cntObs" placeholder="Ej. Verificado en físico por el administrador"></textarea></div>
+    <div class="err" id="cntErr"></div><div class="mfoot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn primary" type="submit">Marcar contado</button></div></form>`,
+  close=>$('#fCnt').addEventListener('submit',async ev=>{ ev.preventDefault(); const bt=ev.target.querySelector('button[type=submit]'); bt.disabled=true;
+    const {data,error}=await sb.rpc('admin_marcar_contado',{p_equipo:id,p_periodo:per,p_obs:fv('cntObs')}); bt.disabled=false;
+    if(error){ $('#cntErr').textContent=error.message; return; }
+    close(); toast(data); loadInv(); }));
+}
+async function autorizarTodos(n){
+  if(!confirm(`¿Autorizar las ${n} solicitudes pendientes? Todas entran al inventario del mes en que se escanearon.`)) return;
+  const b=$('#solTodos'); b.disabled=true; b.textContent='Autorizando…';
+  const {data,error}=await sb.rpc('autorizar_pendientes',{p_tipo:''});
+  if(error){ toast(error.message); b.disabled=false; return; }
+  toast(data); loadAll();
 }
 async function autorizarBase(){
   const b=$('#solBaseAll'); b.disabled=true; b.textContent='Autorizando…';
@@ -1452,6 +1484,7 @@ document.addEventListener('click',async ev=>{
     if(f==='nov'){ $('[data-tab="nov"]').click(); return; }
     const [ft,fe]=f.split('|'); $('#fTipo').value=ft||''; $('#fEstado').value=fe||''; $('#q').value=''; renderAdmin();
     $('#listEq').scrollIntoView({block:'start',behavior:'smooth'}); return; }
+  if(t.dataset.contar){ marcarContado(t.dataset.contar); return; }
   if(t.dataset.valf){ VAL.filtro=t.dataset.valf; renderVal(); }
   if(t.dataset.invf){ INV.filtro=t.dataset.invf; renderInv(); $('#invChips').scrollIntoView({block:'start',behavior:'smooth'}); }
   if(t.dataset.nota){ notaBase(t.dataset.nota); }
