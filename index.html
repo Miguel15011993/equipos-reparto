@@ -1120,18 +1120,22 @@ async function cargarMis(){
   if(!MIS.mes||!meses.includes(MIS.mes)) MIS.mes=meses[0]||mesActual();
   renderMis();
 }
-const MIS_EST={'Pendiente de autorización':'p-proc','Autorizado':'p-Disponible','Rechazado':'p-Abierta','Registrado':'p-Asignado'};
+const MIS_EST={'Duplicado (no se guardó)':'p-Abierta','Pendiente de autorización':'p-proc','Autorizado':'p-Disponible','Rechazado':'p-Abierta','Registrado':'p-Asignado'};
 function renderMis(){
   const D=MIS.datos||[]; const meses=[...new Set(D.map(x=>x.periodo))].sort().reverse();
   $('#misMeses').innerHTML = meses.length ? meses.map(m=>`<button class="fchip${m===MIS.mes?' on':''}" data-mismes="${m}">${esc(nombreMes(m))}<b>${D.filter(x=>x.periodo===m).length}</b></button>`).join('') : '';
   const M=D.filter(x=>x.periodo===MIS.mes);
   const n=f=>M.filter(f).length;
-  $('#misKpis').innerHTML=[['Celulares',n(x=>x.tipo==='Celular'),''],['Impresoras',n(x=>x.tipo==='Impresora'),''],['Pendientes de autorizar',n(x=>x.estado==='Pendiente de autorización'),'warn'],['Autorizados',n(x=>x.estado==='Autorizado'),'ok'],['Rechazados',n(x=>x.estado==='Rechazado'),n(x=>x.estado==='Rechazado')?'alert':''],['En el inventario del mes',n(x=>x.en_inventario),'ok']]
+  const dup=x=>x.estado==='Duplicado (no se guardó)';
+  // equipos únicos (un equipo cuenta una sola vez aunque tenga varios registros; los duplicados bloqueados no cuentan)
+  const unicos=t=>new Set(M.filter(x=>x.tipo===t&&!dup(x)&&x.estado!=='Rechazado').map(x=>x.equipo_id||x.imei||x.serial)).size;
+  const nd=n(dup);
+  $('#misKpis').innerHTML=[['Celulares',unicos('Celular'),''],['Impresoras',unicos('Impresora'),''],['Pendientes de autorizar',n(x=>x.estado==='Pendiente de autorización'),'warn'],['Autorizados',n(x=>x.estado==='Autorizado'),'ok'],['Rechazados',n(x=>x.estado==='Rechazado'),n(x=>x.estado==='Rechazado')?'alert':''],['En el inventario del mes',new Set(M.filter(x=>x.en_inventario).map(x=>x.equipo_id)).size,'ok']].concat(nd?[['Intentos duplicados (no cuentan)',nd,'warn']]:[])
     .map(([l,v,k])=>`<div class="kpi ${k}"><div class="n">${v}</div><div class="l">${l}</div></div>`).join('');
-  const F=[['todos','Todo',M.length],['Celular','Celulares',n(x=>x.tipo==='Celular')],['Impresora','Impresoras',n(x=>x.tipo==='Impresora')],['pend','Pendientes',n(x=>x.estado==='Pendiente de autorización')],['rech','Rechazados',n(x=>x.estado==='Rechazado')]];
+  const F=[['todos','Todo',M.length],['Celular','Celulares',n(x=>x.tipo==='Celular'&&!dup(x))],['Impresora','Impresoras',n(x=>x.tipo==='Impresora'&&!dup(x))],['pend','Pendientes',n(x=>x.estado==='Pendiente de autorización')],['rech','Rechazados',n(x=>x.estado==='Rechazado')]].concat(nd?[['dup','Duplicados',nd]]:[]);
   $('#misChips').innerHTML=F.map(([k,t,c])=>`<button class="fchip${MIS.filtro===k?' on':''}" data-misf="${k}">${t}<b>${c}</b></button>`).join('');
   const q=fv('misQ').toLowerCase();
-  const rows=M.filter(x=> MIS.filtro==='todos'||x.tipo===MIS.filtro||(MIS.filtro==='pend'&&x.estado==='Pendiente de autorización')||(MIS.filtro==='rech'&&x.estado==='Rechazado'))
+  const rows=M.filter(x=> MIS.filtro==='todos'||(x.tipo===MIS.filtro&&!dup(x))||(MIS.filtro==='dup'&&dup(x))||(MIS.filtro==='pend'&&x.estado==='Pendiente de autorización')||(MIS.filtro==='rech'&&x.estado==='Rechazado'))
     .filter(x=>!q||[x.imei,x.imei2,x.serial,x.marca,x.modelo,x.accion].join(' ').toLowerCase().includes(q));
   $('#misList').innerHTML = !rows.length ? `<div class="empty">${M.length?'Nada en este filtro.':'No tienes registros en este mes.'}</div>` :
     `<div class="row mrow head"><div class="lbl">Fecha</div><div class="lbl">Equipo</div><div class="lbl">Identificación</div><div class="lbl">Qué registraste</div><div class="lbl">Estado</div></div>`+
@@ -1139,7 +1143,7 @@ function renderMis(){
       <div><div class="mono">${esc(fmtTs(x.fecha))}</div><div class="cdtag">${esc(x.cd||'')}</div></div>
       <div><div class="t1">${esc(x.tipo||'')} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin marca')}</div></div>
       <div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?'<br>IMEI 2 '+esc(x.imei2):''}${x.serial?'<br>S/N '+esc(x.serial):''}</div>
-      <div><div>${esc(x.accion)}</div>${x.nota&&x.estado==='Rechazado'?`<div class="t2" style="color:var(--bad)">Motivo: ${esc(x.nota)}</div>`:''}<div class="t2">${x.nfotos?`${x.nfotos} foto${x.nfotos>1?'s':''}`:'Sin foto'}</div></div>
+      <div><div>${esc(x.accion)}</div>${x.nota&&dup(x)?`<div class="t2" style="color:var(--warn)">${esc(x.nota)}</div>`:''}${x.nota&&x.estado==='Rechazado'?`<div class="t2" style="color:var(--bad)">Motivo: ${esc(x.nota)}</div>`:''}<div class="t2">${x.nfotos?`${x.nfotos} foto${x.nfotos>1?'s':''}`:'Sin foto'}</div></div>
       <div><span class="pill ${MIS_EST[x.estado]||''}">${esc(x.estado)}</span>${x.en_inventario?'<div class="t2" style="color:var(--ok);margin-top:4px">✓ En inventario del mes</div>':''}</div>
     </div>`).join('');
 }
