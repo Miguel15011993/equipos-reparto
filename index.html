@@ -276,7 +276,7 @@ button.kpi.on{outline:2px solid var(--info);outline-offset:-1px}
       </div>
       <div id="regForm" hidden></div>
       <div id="misView" hidden>
-        <div class="toolbar"><button class="btn" id="misBack" type="button">← Volver</button><h2 style="margin:0;font-size:22px;flex:1">Mis registros</h2><button class="btn" id="misRefresh" type="button">Actualizar</button></div>
+        <div class="toolbar"><button class="btn" id="misBack" type="button">← Volver</button><h2 style="margin:0;font-size:22px;flex:1">Mis registros</h2><button class="btn" id="misExport" type="button">Exportar a Excel</button><button class="btn" id="misRefresh" type="button">Actualizar</button></div>
         <p class="t2" style="margin:-4px 0 6px">Solo lectura: aquí ves lo que tú registraste. Para corregir algo, avísale al administrador.</p>
         <div class="fchips" id="misMeses"></div>
         <div class="kpis" id="misKpis"></div>
@@ -1143,10 +1143,33 @@ function renderMis(){
       <div><div class="mono">${esc(fmtTs(x.fecha))}</div><div class="cdtag">${esc(x.cd||'')}</div></div>
       <div><div class="t1">${esc(x.tipo||'')} · ${esc([x.marca,x.modelo].filter(Boolean).join(' ')||'sin marca')}</div></div>
       <div class="mono t2">${x.imei?'IMEI '+esc(x.imei):''}${x.imei2?'<br>IMEI 2 '+esc(x.imei2):''}${x.serial?'<br>S/N '+esc(x.serial):''}</div>
-      <div><div>${esc(x.accion)}</div>${x.nota&&dup(x)?`<div class="t2" style="color:var(--warn)">${esc(x.nota)}</div>`:''}${x.nota&&x.estado==='Rechazado'?`<div class="t2" style="color:var(--bad)">Motivo: ${esc(x.nota)}</div>`:''}<div class="t2">${x.nfotos?`${x.nfotos} foto${x.nfotos>1?'s':''}`:'Sin foto'}</div></div>
+      <div><div>${esc(x.accion)}</div>${x.nota&&dup(x)?`<div class="t2" style="color:var(--warn)">${esc(x.nota)}</div>`:''}${x.nota&&x.estado==='Rechazado'?`<div class="t2" style="color:var(--bad)">Motivo: ${esc(x.nota)}</div>`:''}${x.fotos?.length?`<button class="btn sm" style="margin-top:4px" data-fotos="${esc(JSON.stringify(x.fotos))}" data-titulo="${esc([x.tipo,x.marca,x.modelo].filter(Boolean).join(' ')+' · '+(x.imei?'IMEI '+x.imei:'S/N '+(x.serial||'')))}">Ver fotos (${x.fotos.length})</button>`:'<div class="t2">Sin foto</div>'}</div>
       <div><span class="pill ${MIS_EST[x.estado]||''}">${esc(x.estado)}</span>${x.en_inventario?'<div class="t2" style="color:var(--ok);margin-top:4px">✓ En inventario del mes</div>':''}</div>
     </div>`).join('');
 }
+async function exportarMis(){
+  const D=MIS.datos||[]; if(!D.length){ toast('No hay registros para exportar.'); return; }
+  const b=$('#misExport'); b.disabled=true; b.textContent='Preparando…';
+  try{
+    // enlaces a las fotos válidos por 7 días
+    const paths=[...new Set(D.flatMap(x=>x.fotos||[]))]; const url={};
+    for(let i=0;i<paths.length;i+=200){ const {data}=await sb.storage.from('evidencias').createSignedUrls(paths.slice(i,i+200),604800); (data||[]).forEach(d=>{ if(d.signedUrl) url[d.path]=d.signedUrl; }); }
+    const maxF=Math.max(0,...D.map(x=>(x.fotos||[]).length));
+    const fila=x=>{ const o={Mes:nombreMes(x.periodo),Fecha:fmtTs(x.fecha),CD:x.cd||'',Tipo:x.tipo||'',Marca:x.marca||'',Modelo:x.modelo||'',IMEI:x.imei||'','IMEI 2':x.imei2||'',Serial:x.serial||'','Qué registré':x.accion||'',Estado:x.estado||'','En inventario del mes':x.en_inventario?'Sí':'No',Nota:(x.estado==='Rechazado'||x.estado==='Duplicado (no se guardó)')?(x.nota||''):'','N° fotos':(x.fotos||[]).length};
+      for(let i=0;i<maxF;i++) o['Foto '+(i+1)]=url[(x.fotos||[])[i]]||''; return o; };
+    const wb=XLSX.utils.book_new();
+    const add=(rows,name)=>{ const ws=XLSX.utils.json_to_sheet(rows);
+      rows.forEach((r,ri)=>{ for(let i=0;i<maxF;i++){ const v=r['Foto '+(i+1)]; if(!v) continue; const col=Object.keys(r).indexOf('Foto '+(i+1)); const ref=XLSX.utils.encode_cell({r:ri+1,c:col}); ws[ref]={t:'s',v:'Ver foto '+(i+1),l:{Target:v}}; } });
+      ws['!cols']=Object.keys(rows[0]||{}).map(k=>({wch:Math.min(28,Math.max(10,k.length+2))})); XLSX.utils.book_append_sheet(wb,ws,name); };
+    const M=D.filter(x=>x.periodo===MIS.mes);
+    if(M.length) add(M.map(fila),('Mes '+MIS.mes).slice(0,31));
+    add(D.map(fila),'Todos los meses');
+    XLSX.writeFile(wb,`mis_registros_${(S.perfil?.usuario||'usuario')}_${today()}.xlsx`);
+    toast('Excel descargado. Los enlaces de las fotos sirven por 7 días.');
+  }catch(e){ toast('No se pudo exportar: '+(e.message||e)); }
+  finally{ b.disabled=false; b.textContent='Exportar a Excel'; }
+}
+$('#misExport').onclick=exportarMis;
 $('#misCard').onclick=abrirMis; $('#misBack').onclick=cerrarMis; $('#misRefresh').onclick=cargarMis; $('#misQ').oninput=renderMis;
 
 // ===================== ADMINISTRADOR =====================
